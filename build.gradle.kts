@@ -36,11 +36,11 @@ kotlin {
 
 compose.desktop {
     application {
-        mainClass = "MainKt"
+        mainClass = "com.appswithlove.MainKt"
         javaHome = System.getenv("JDK_15")
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
-            packageName = "toggl-to-float-compose"
+            packageName = "Toggl2Float"
             packageVersion = "1.0.0"
         }
     }

@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.appswithlove.floaat.FloatPeopleItem
+import com.appswithlove.version
 import java.net.URI
 import java.time.LocalDate
 
@@ -56,7 +57,7 @@ private fun MainContent(
             }
 
             Text(
-                "Version ${System.getProperty("jpackage.app-version")}",
+                "Version $version",
                 modifier = Modifier.align(Alignment.BottomStart),
                 style = MaterialTheme.typography.caption
             )
