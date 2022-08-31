@@ -17,6 +17,9 @@ object Logger {
         logs.update { it + listOf("${it.size} - $string" to LogLevel.Error) }
     }
 
+    fun clear() {
+        logs.update { emptyList() }
+    }
 
 
 }

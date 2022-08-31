@@ -33,6 +33,7 @@ class MainViewModel {
     }
 
     fun clear() {
+        Logger.clear()
         dataStore.clear()
         refresh()
     }
@@ -87,7 +88,7 @@ class MainViewModel {
         }
     }
 
-    private fun fetchProjectsInt() {
+    private suspend fun fetchProjectsInt() {
         val workspace = toggl.getWorkspaces() ?: throw Exception("Couldn't get Toggle Workspace")
 
         val floatProjects = float.getFloatProjects()
@@ -109,7 +110,7 @@ class MainViewModel {
     }
 
 
-    private fun addTimeEntries(from: LocalDate, to: LocalDate) {
+    private suspend fun addTimeEntries(from: LocalDate, to: LocalDate) {
         val timeEntries = toggl.getTogglTimeEntries(from, to)
         Logger.log("⏱ Found ${timeEntries.size} time entries for $from - $to on Toggl!")
         if (timeEntries.isEmpty()) {

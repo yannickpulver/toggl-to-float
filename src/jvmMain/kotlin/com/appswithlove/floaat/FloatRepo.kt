@@ -4,18 +4,20 @@ import TimeEntryForPublishing
 import com.appswithlove.json
 import com.appswithlove.store.DataStore
 import com.appswithlove.ui.Logger
-import kotlinx.coroutines.runBlocking
+import io.ktor.client.*
+import io.ktor.client.call.*
+import io.ktor.client.engine.cio.*
+import io.ktor.client.request.*
+import io.ktor.client.statement.*
+import io.ktor.http.*
+import io.ktor.util.*
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
-import java.net.URI
-import java.net.http.HttpClient
-import java.net.http.HttpRequest
-import java.net.http.HttpResponse
 import java.time.LocalDate
 import kotlin.math.roundToInt
 
 class FloatRepo constructor(private val dataStore: DataStore) {
-    fun pushToFloat(from: LocalDate, to: LocalDate, pairs: List<TimeEntryForPublishing>) {
+    suspend fun pushToFloat(from: LocalDate, to: LocalDate, pairs: List<TimeEntryForPublishing>) {
         Logger.log("⬆️ Uploading ${pairs.size} time entries to Float!")
         Logger.log("---")
         val floatUrl = getFloatUrl()
@@ -38,9 +40,9 @@ class FloatRepo constructor(private val dataStore: DataStore) {
         timeEntries.forEachIndexed { index, it ->
             val data = json.encodeToString(it)
             val request = postRequest(endpoint, data)
-            if (request.statusCode() != 200) {
+            if (request.status != HttpStatusCode.OK) {
                 Logger.log("An error occurred when uploading: ${it.notes}")
-                Logger.log(request.body() + request.statusCode())
+                Logger.log(request.bodyAsText() + request.status)
                 return
             }
             Logger.log("Posting (${index + 1}/${timeEntries.size}): ${it.notes}")
@@ -77,14 +79,14 @@ class FloatRepo constructor(private val dataStore: DataStore) {
         return key
     }
 
-    fun getFloatPeople(): List<FloatPeopleItem> {
+    suspend fun getFloatPeople(): List<FloatPeopleItem> {
         val floatUrl = getFloatUrl()
         val endpoint = "$floatUrl/people"
         return getAllPages<FloatPeopleItem>(endpoint).sortedBy { it.name }
     }
 
 
-    private inline fun <reified T> getAllPages(baseUrl: String): List<T> {
+    private suspend inline fun <reified T> getAllPages(baseUrl: String): List<T> {
         var page = 1
         val peopleList = mutableListOf<T>()
 
@@ -95,8 +97,7 @@ class FloatRepo constructor(private val dataStore: DataStore) {
             if (projects.isEmpty()) break
             peopleList.addAll(projects)
             val totalItems =
-                response.headers().map().getOrDefault("x-pagination-total-count", emptyList()).firstOrNull()
-                    ?.toFloatOrNull() ?: 1f
+                response.headers.toMap().getOrDefault("X-Pagination-Total-Count", emptyList()).firstOrNull()?.toFloatOrNull() ?: 1f
             Logger.log("Downloading - Progress: ${(peopleList.size.toFloat() / totalItems) * 100f}%")
             page += 1
         }
@@ -104,7 +105,7 @@ class FloatRepo constructor(private val dataStore: DataStore) {
         return peopleList
     }
 
-    fun getFloatTimeEntries(from: LocalDate, to: LocalDate): List<FloatTimeEntriesItem> {
+    suspend fun getFloatTimeEntries(from: LocalDate, to: LocalDate): List<FloatTimeEntriesItem> {
         val floatUrl = getFloatUrl()
         val userId = getFloatClientId()
         val endpoint = "$floatUrl/logged-time?start_date=$from&end_date=$to&people_id=$userId"
@@ -113,7 +114,7 @@ class FloatRepo constructor(private val dataStore: DataStore) {
         return json.decodeFromString(response.body())
     }
 
-    fun getFloatClientId(): Int {
+    suspend fun getFloatClientId(): Int {
         var clientId: Int? = dataStore.getStore.floatClientId
         while (clientId == null || clientId == -1) {
             val people = getFloatPeople().sortedBy { it.name }
@@ -142,7 +143,7 @@ class FloatRepo constructor(private val dataStore: DataStore) {
         return clientId
     }
 
-    fun getFloatProjects(): List<String> {
+    suspend fun getFloatProjects(): List<String> {
         val floatUrl = getFloatUrl()
         Logger.log("Downloading Float Projects ⬇️")
 
@@ -173,26 +174,30 @@ class FloatRepo constructor(private val dataStore: DataStore) {
         }
     }
 
-    private fun getRequest(
+    private suspend fun getRequest(
         url: String,
         headers: Map<String, String> = mapOf()
-    ): HttpResponse<String> {
-        val client = HttpClient.newBuilder().build();
-        var request = HttpRequest.newBuilder().uri(URI.create(url))
-            .header("Authorization", "Bearer ${getFloatApiKey()}")
-            .GET()
+    ): HttpResponse {
+        val client = HttpClient(CIO)
 
-        headers.forEach {
-            request = request.header(it.key, it.value)
+        val response: HttpResponse = client.get(url) {
+            header(HttpHeaders.Authorization, "Bearer ${getFloatApiKey()}")
+            headers.forEach {
+                header(it.key, it.value)
+            }
         }
-        return client.send(request.build(), HttpResponse.BodyHandlers.ofString())
+        return response
     }
 
-    private fun postRequest(url: String, data: String): HttpResponse<String> {
-        val client = HttpClient.newBuilder().build();
-        val request = HttpRequest.newBuilder().uri(URI.create(url)).POST(HttpRequest.BodyPublishers.ofString(data))
-            .header("Content-Type", "application/json")
-            .header("Authorization", "Bearer ${getFloatApiKey()}")
-        return client.send(request.build(), HttpResponse.BodyHandlers.ofString())
+    private suspend fun postRequest(url: String, data: String): HttpResponse {
+
+        val client = HttpClient(CIO)
+
+        val response: HttpResponse = client.post(url) {
+            header(HttpHeaders.ContentType, "application/json")
+            header(HttpHeaders.Authorization, "Bearer ${getFloatApiKey()}")
+            setBody(data)
+        }
+        return response
     }
 }
