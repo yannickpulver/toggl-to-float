@@ -1,10 +1,13 @@
 package com.appswithlove.ui
 
 import TimeEntryForPublishing
+import androidx.compose.ui.graphics.toArgb
 import com.appswithlove.floaat.FloatPeopleItem
 import com.appswithlove.floaat.FloatRepo
+import com.appswithlove.floaat.hex2Rgb
 import com.appswithlove.store.DataStore
 import com.appswithlove.toggl.TogglProject
+import com.appswithlove.toggl.TogglProjectCreate
 import com.appswithlove.toggl.TogglRepo
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -47,6 +50,12 @@ class MainViewModel {
     fun archiveProjects() {
         CoroutineScope(Dispatchers.IO).launch {
             toggl.getTogglProjects()
+        }
+    }
+
+    fun updateColors() {
+        CoroutineScope(Dispatchers.IO).launch {
+            updateProjectColors()
         }
     }
 
@@ -94,9 +103,13 @@ class MainViewModel {
         val floatProjects = float.getFloatProjects()
         val togglProjects = toggl.getTogglProjects()
 
+        Logger.log(togglProjects.toString())
         val newProjects =
-            floatProjects.filter { floatProject -> !togglProjects.any { it.name.contains(floatProject) } }
-                .map { TogglProject(name = it) }
+            floatProjects.filter { floatProject -> !togglProjects.any { it.name.contains(floatProject.first) } }
+                .map {
+                    val colorString = floatColorToTogglColor(it.second)
+                    TogglProjectCreate(name = it.first, color = colorString)
+                }
 
         if (newProjects.isNotEmpty()) {
             Logger.log("⬆️ Syncing new Float projects to Toggl — (${newProjects.size}) of ${floatProjects.size}")
@@ -107,6 +120,43 @@ class MainViewModel {
         }
 
         toggl.pushProjectsToToggl(workspace.id, newProjects)
+    }
+
+    private suspend fun updateProjectColors() {
+        val workspace = toggl.getWorkspaces() ?: throw Exception("Couldn't get Toggle Workspace")
+
+        val floatProjects = float.getFloatProjects()
+        val togglProjects = toggl.getTogglProjects()
+
+        val existingProjects =
+            floatProjects.filter { floatProject -> togglProjects.any { it.name.contains(floatProject.first) } }
+                .map { floatProject ->
+                    val colorString = floatColorToTogglColor(floatProject.second)
+                    TogglProject(
+                        name = floatProject.first,
+                        color = colorString,
+                        project_id = togglProjects.firstOrNull { it.name.contains(floatProject.first) }?.id ?: -1)
+                }
+
+        if (existingProjects.isNotEmpty()) {
+            Logger.log("⬆️ Syncing Colors to Toggl — (${existingProjects.size}) of ${floatProjects.size}")
+            Logger.log("---")
+        } else {
+            Logger.log("🎉 All Float projects already up-to-date in Toggl!")
+            return
+        }
+
+        toggl.updateProjectColors(workspace.id, existingProjects)
+    }
+
+
+    private fun floatColorToTogglColor(colorString: String?): String? {
+        val color = try {
+            hex2Rgb(colorString)?.let { toggl.getClosestTogglColor(it) }
+        } catch (exception: Exception) {
+            null
+        }
+        return color?.toArgb()?.let { Integer.toHexString(it) }?.drop(2)?.let { "#$it" }
     }
 
 

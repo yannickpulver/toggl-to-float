@@ -42,9 +42,9 @@ compose.desktop {
         mainClass = "com.appswithlove.MainKt"
         javaHome = System.getenv("JDK_15")
         nativeDistributions {
-            targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
+            targetFormats(TargetFormat.Dmg, TargetFormat.Exe)
             packageName = "Toggl2Float"
-            packageVersion = "1.0.0"
+            packageVersion = "1.0.1"
             macOS {
                 iconFile.set(project.file("icon.icns"))
             }

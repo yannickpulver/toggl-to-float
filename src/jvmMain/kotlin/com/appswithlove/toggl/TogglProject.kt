@@ -6,12 +6,30 @@ import kotlin.random.Random
 
 @Serializable
 data class TogglProject(
+    val project_id: Int,
     val active: Boolean = true,
     val auto_estimates: Boolean = false,
     val currency: String = "CHF",
     val estimated_hours: Int = 1,
     val is_private: Boolean = false,
     val name: String,
+    val color: String? = null,
+)
+
+@Serializable
+data class TogglProjectCreate(
+    val active: Boolean = true,
+    val auto_estimates: Boolean = false,
+    val currency: String = "CHF",
+    val estimated_hours: Int = 1,
+    val is_private: Boolean = false,
+    val name: String,
+    val color: String? = null,
+)
+
+@Serializable
+data class TogglProjectUpdate(
+    val color: String? = null,
 )
 
 fun randomColor() : String {

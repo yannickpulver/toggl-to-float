@@ -1,6 +1,7 @@
 package com.appswithlove.floaat
 
 import TimeEntryForPublishing
+import androidx.compose.ui.graphics.Color
 import com.appswithlove.json
 import com.appswithlove.store.DataStore
 import com.appswithlove.ui.Logger
@@ -14,6 +15,7 @@ import io.ktor.util.*
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import java.time.LocalDate
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 class FloatRepo constructor(private val dataStore: DataStore) {
@@ -97,7 +99,8 @@ class FloatRepo constructor(private val dataStore: DataStore) {
             if (projects.isEmpty()) break
             peopleList.addAll(projects)
             val totalItems =
-                response.headers.toMap().getOrDefault("X-Pagination-Total-Count", emptyList()).firstOrNull()?.toFloatOrNull() ?: 1f
+                response.headers.toMap().getOrDefault("X-Pagination-Total-Count", emptyList()).firstOrNull()
+                    ?.toFloatOrNull() ?: 1f
             Logger.log("Downloading - Progress: ${(peopleList.size.toFloat() / totalItems) * 100f}%")
             page += 1
         }
@@ -143,7 +146,7 @@ class FloatRepo constructor(private val dataStore: DataStore) {
         return clientId
     }
 
-    suspend fun getFloatProjects(): List<String> {
+    suspend fun getFloatProjects(): List<Pair<String, String?>> {
         val floatUrl = getFloatUrl()
         Logger.log("Downloading Float Projects ⬇️")
 
@@ -156,9 +159,9 @@ class FloatRepo constructor(private val dataStore: DataStore) {
 
         val projects = grouped.map { project ->
             buildList {
-                add(project.key.asString())
+                add(project.key.asString() to project.key.color)
                 project.value.forEach {
-                    add(project.key.asString(it))
+                    add(project.key.asString(it) to it.color)
                 }
             }
         }.flatten()
@@ -200,4 +203,7 @@ class FloatRepo constructor(private val dataStore: DataStore) {
         }
         return response
     }
+
+
+
 }

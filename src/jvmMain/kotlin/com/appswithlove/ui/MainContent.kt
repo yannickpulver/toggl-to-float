@@ -36,7 +36,8 @@ fun MainContent() {
         fetchProjects = viewModel::fetchProjects,
         archiveProjects = viewModel::archiveProjects,
         addTimeEntries = viewModel::addTimeEntries,
-        save = viewModel::save
+        save = viewModel::save,
+        syncColors = viewModel::updateColors
     )
 }
 
@@ -49,6 +50,7 @@ private fun MainContent(
     archiveProjects: () -> Unit,
     addTimeEntries: (String, String) -> Unit,
     save: (String?, String?, FloatPeopleItem?) -> Unit,
+    syncColors: () -> Unit,
 ) {
     Scaffold {
         Box {
@@ -82,6 +84,10 @@ private fun MainContent(
 
                         Button(onClick = { fetchProjects() }) {
                             Text("Sync Float Projects ➡️ Toggl")
+                        }
+
+                        Button(onClick = { syncColors() }) {
+                            Text("🎨 Sync Colors")
                         }
                     }
                     Divider()
