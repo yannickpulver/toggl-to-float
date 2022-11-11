@@ -1,4 +1,3 @@
-import org.jetbrains.compose.compose
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 
 plugins {
@@ -47,6 +46,7 @@ compose.desktop {
             packageVersion = "1.0.1"
             macOS {
                 iconFile.set(project.file("icon.icns"))
+                bundleID = "com.appswithlove.toggl2float"
             }
             windows {
                 iconFile.set(project.file("icon.ico"))

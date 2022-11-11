@@ -1,7 +1,6 @@
 package com.appswithlove.floaat
 
 import TimeEntryForPublishing
-import androidx.compose.ui.graphics.Color
 import com.appswithlove.json
 import com.appswithlove.store.DataStore
 import com.appswithlove.ui.Logger
@@ -15,7 +14,8 @@ import io.ktor.util.*
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import java.time.LocalDate
-import kotlin.math.abs
+import java.time.temporal.WeekFields
+import java.util.*
 import kotlin.math.roundToInt
 
 class FloatRepo constructor(private val dataStore: DataStore) {
@@ -87,6 +87,55 @@ class FloatRepo constructor(private val dataStore: DataStore) {
         return getAllPages<FloatPeopleItem>(endpoint).sortedBy { it.name }
     }
 
+    suspend fun getWeeklyOverview(): List<FloatOverview> {
+        val monday = LocalDate.now().with(WeekFields.of(Locale.FRANCE).firstDayOfWeek)
+        val sunday = monday.plusWeeks(1).minusDays(1)
+        val tasks = getFloatTasks(monday, sunday)
+
+        return tasks
+            .sortedByDescending { it.hours }
+            .map {
+                val project = getProject(it.project_id)
+                val phase = if (it.phase_id != 0) {
+                    getPhase(it.phase_id)
+                } else null
+                FloatOverview(it, project, phase)
+            }
+
+    }
+
+
+    private suspend fun getFloatTasks(start: LocalDate, end: LocalDate): List<FloatTask> {
+        val floatUrl = getFloatUrl()
+        val userId = getFloatClientId()
+        val endpoint = "$floatUrl/tasks?people_id=$userId&start_date=$start&end_date=$end"
+        val response = getRequest(url = endpoint)
+        return json.decodeFromString(response.body())
+    }
+
+    private suspend fun getProject(id: Int): FloatProject? {
+        val floatUrl = getFloatUrl()
+        val endpoint = "$floatUrl/projects/$id"
+        val response = getRequest(url = endpoint)
+        return json.decodeFromString(response.body())
+
+    }
+
+    private suspend fun getTask(id: Int): FloatTask? {
+        val floatUrl = getFloatUrl()
+        val endpoint = "$floatUrl/tasks/$id"
+        val response = getRequest(url = endpoint)
+        return json.decodeFromString(response.body())
+
+    }
+
+    private suspend fun getPhase(id: Int): FloatPhaseItem? {
+        val floatUrl = getFloatUrl()
+        val endpoint = "$floatUrl/phases/$id"
+        val response = getRequest(url = endpoint)
+        return json.decodeFromString(response.body())
+
+    }
 
     private suspend inline fun <reified T> getAllPages(baseUrl: String): List<T> {
         var page = 1
@@ -116,6 +165,17 @@ class FloatRepo constructor(private val dataStore: DataStore) {
         val response = getRequest(url = endpoint)
         return json.decodeFromString(response.body())
     }
+
+
+    suspend fun getFloatTimeEntries(): List<FloatTimeEntriesItem> {
+        val floatUrl = getFloatUrl()
+        val userId = getFloatClientId()
+        val endpoint = "$floatUrl/logged-time?people_id=$userId"
+
+        val response = getRequest(url = endpoint)
+        return json.decodeFromString(response.body())
+    }
+
 
     suspend fun getFloatClientId(): Int {
         var clientId: Int? = dataStore.getStore.floatClientId
@@ -153,8 +213,7 @@ class FloatRepo constructor(private val dataStore: DataStore) {
         val projectList = getAllPages<FloatProject>("$floatUrl/projects")
 
         val phases = getAllPages<FloatPhaseItem>("$floatUrl/phases")
-        val grouped =
-            projectList.associate { project -> project to phases.filter { it.project_id == project.project_id } }
+        val grouped = projectList.associateWith { project -> phases.filter { it.project_id == project.project_id } }
 
 
         val projects = grouped.map { project ->
@@ -203,7 +262,6 @@ class FloatRepo constructor(private val dataStore: DataStore) {
         }
         return response
     }
-
 
 
 }

@@ -9,16 +9,14 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.appswithlove.floaat.FloatPeopleItem
+import com.appswithlove.floaat.totalHours
 import com.appswithlove.version
 import java.net.URI
 import java.time.LocalDate
@@ -71,7 +69,10 @@ private fun MainContent(
             ) {
                 if (state.isValid) {
                     Text("Welcome to Toggl 2 Float! 🎉")
-                    Text("If you need to add all of your Float projects to Toggl - Use the button below. You can also run it again to get the latest projects updated.", modifier = Modifier.fillMaxWidth(0.8f))
+                    Text(
+                        "If you need to add all of your Float projects to Toggl - Use the button below. You can also run it again to get the latest projects updated.",
+                        modifier = Modifier.fillMaxWidth(0.8f)
+                    )
 
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally),
@@ -93,6 +94,12 @@ private fun MainContent(
                     Divider()
 
                     val from = remember { mutableStateOf(LocalDate.now().toString()) }
+
+                    LaunchedEffect(state.lastEntryDate) {
+                        from.value = state.lastEntryDate?.plusDays(1)?.toString() ?: from.value
+
+                    }
+
                     val to = remember { mutableStateOf(LocalDate.now().toString()) }
                     Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                         OutlinedTextField(
@@ -129,6 +136,23 @@ private fun MainContent(
                     Form(state, save)
                 }
                 Divider()
+
+
+                AnimatedVisibility(state.weeklyOverview.isNotEmpty()) {
+                    Column {
+                        Text("Your Week: (Total hours: ${state.weeklyOverview.totalHours}) ")
+                        state.weeklyOverview.forEach {
+                            Text("${it.weekHours}h")
+                            it.project?.name?.let {
+                                Text(it)
+                            }
+                            it.phase?.name?.let {
+                                Text(it, style = MaterialTheme.typography.caption)
+                            }
+                        }
+                    }
+                }
+
 
                 AnimatedVisibility(state.logs.isNotEmpty()) {
                     Logs(state.logs)
