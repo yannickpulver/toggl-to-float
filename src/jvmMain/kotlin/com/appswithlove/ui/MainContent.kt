@@ -2,29 +2,29 @@ package com.appswithlove.ui
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.desktop.ui.tooling.preview.Preview
-import androidx.compose.foundation.*
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import com.appswithlove.floaat.FloatPeopleItem
 import com.appswithlove.floaat.totalHours
+import com.appswithlove.ui.setup.SetupForm
 import com.appswithlove.ui.theme.FloaterTheme
-import com.appswithlove.ui.utils.openInBrowser
+import com.appswithlove.ui.theme.LightGray
 import com.appswithlove.version
-import com.vanpra.composematerialdialogs.*
+import com.vanpra.composematerialdialogs.DesktopWindowPosition
+import com.vanpra.composematerialdialogs.MaterialDialog
+import com.vanpra.composematerialdialogs.MaterialDialogProperties
 import com.vanpra.composematerialdialogs.datetime.date.datepicker
-import java.net.URI
-import java.text.SimpleDateFormat
+import com.vanpra.composematerialdialogs.rememberMaterialDialogState
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
@@ -37,7 +37,7 @@ fun MainContent() {
     MainContent(
         state = state.value,
         clear = viewModel::clear,
-        fetchProjects = viewModel::fetchProjects,
+        syncProjects = viewModel::fetchProjects,
         archiveProjects = viewModel::archiveProjects,
         addTimeEntries = viewModel::addTimeEntries,
         save = viewModel::save,
@@ -46,10 +46,19 @@ fun MainContent() {
 }
 
 @Composable
+fun Version(modifier: Modifier = Modifier) {
+    Text(
+        "Version $version",
+        modifier = modifier,
+        style = MaterialTheme.typography.caption
+    )
+}
+
+@Composable
 private fun MainContent(
     state: MainState,
     clear: () -> Unit,
-    fetchProjects: () -> Unit,
+    syncProjects: () -> Unit,
     archiveProjects: () -> Unit,
     addTimeEntries: (LocalDate?) -> Unit,
     save: (String?, String?, FloatPeopleItem?) -> Unit,
@@ -61,75 +70,32 @@ private fun MainContent(
                 Text("Reset T2F", style = MaterialTheme.typography.caption)
             }
 
+            Version(modifier = Modifier.align(Alignment.BottomStart))
 
-            Text(
-                "Version $version",
-                modifier = Modifier.align(Alignment.BottomStart),
-                style = MaterialTheme.typography.caption
-            )
+            Row {
+                AnimatedVisibility(state.isValid) {
+                    YourWeek(state)
+                }
+                Divider(modifier = Modifier.width(1.dp).fillMaxHeight())
 
-            Column(
-                modifier = Modifier.fillMaxSize().padding(24.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                if (state.isValid) {
-                    Text("Welcome to Toggl 2 Float! 🎉")
-                    Text(
-                        "If you need to add all of your Float projects to Toggl - Use the button below. You can also run it again to get the latest projects updated.",
-                        modifier = Modifier.fillMaxWidth(0.8f)
-                    )
 
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
+                Column(
+                    modifier = Modifier.fillMaxSize().padding(24.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    if (state.isValid) {
+                        Welcome(syncProjects)
+                        Divider()
+                        AddTime(addTimeEntries = addTimeEntries)
+                    }
 
-                        OutlinedButton(onClick = { openInBrowser(URI("https://track.toggl.com/projects")) }) {
-                            Text("🌍 Visit Toggl Projects")
-                        }
-
-                        Button(onClick = { fetchProjects() }) {
-                            Text("Sync Float Projects ➡️ Toggl")
-                        }
-
-                        Button(onClick = { syncColors() }) {
-                            Text("🎨 Sync Colors")
-                        }
+                    if (state.loading) {
+                        Loading()
+                    } else {
+                        SetupForm(state, save)
                     }
                     Divider()
 
-                    TimeEntries(addTimeEntries = addTimeEntries)
-                }
-
-                if (state.loading) {
-                    Box(modifier = Modifier.fillMaxWidth()) {
-                        CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-                    }
-                } else {
-                    Form(state, save)
-                }
-                Divider()
-
-
-                AnimatedVisibility(state.weeklyOverview.isNotEmpty()) {
-                    Column {
-                        Text("Your Week: (Total hours: ${state.weeklyOverview.totalHours}) ")
-                        state.weeklyOverview.forEach {
-                            Text("${it.weekHours}h")
-                            it.project?.name?.let {
-                                Text(it)
-                            }
-                            it.phase?.name?.let {
-                                Text(it, style = MaterialTheme.typography.caption)
-                            }
-                        }
-                    }
-                }
-
-
-                AnimatedVisibility(state.logs.isNotEmpty()) {
-                    Logs(state.logs)
                 }
             }
         }
@@ -137,7 +103,94 @@ private fun MainContent(
 }
 
 @Composable
-private fun TimeEntries(addTimeEntries: (LocalDate?) -> Unit) {
+private fun YourWeek(state: MainState) {
+    Column(Modifier.width(300.dp).padding(16.dp)) {
+        val title = "Your Week" + if (state.weeklyOverview.isNotEmpty()) { " (${state.weeklyOverview.totalHours}h)"  } else ""
+        Text(title, style = MaterialTheme.typography.h4)
+        if (state.weeklyOverview.isNotEmpty()) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                //Text("Your Week: (Total hours: ${state.weeklyOverview.totalHours}) ")
+                state.weeklyOverview.forEach { (project, items) ->
+                    Card(backgroundColor = LightGray) {
+                        Column(Modifier.padding(8.dp)) {
+                            Row {
+                                project?.name?.let {
+                                    Text(it, modifier = Modifier.weight(1f))
+                                }
+                                Text("${items.totalHours}h")
+                            }
+
+                            items.forEach {
+                                Divider()
+                                Row {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        it.phase?.name?.let {
+                                            Text(
+                                                it,
+                                                style = MaterialTheme.typography.caption,
+
+                                                )
+                                        }
+                                        if (it.task.name.isNotEmpty()) {
+                                            Text(it.task.name, style = MaterialTheme.typography.caption)
+                                        }
+                                    }
+
+                                    if (items.size > 1) {
+                                        Text(
+                                            "${it.weekHours}h",
+                                            style = MaterialTheme.typography.caption
+                                        )
+                                    }
+                                }
+
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
+            Loading()
+        }
+    }
+}
+
+@Composable
+private fun Welcome(syncProjects: () -> Unit) {
+    Text("Welcome to Toggl 2 Float! 🎉")
+    Text(
+        "If you need to add all of your Float projects to Toggl - Use the button below. You can also run it again to get the latest projects updated.",
+        modifier = Modifier.fillMaxWidth(0.8f)
+    )
+
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+
+//                        OutlinedButton(onClick = { openInBrowser(URI("https://track.toggl.com/projects")) }) {
+//                            Text("🌍 Visit Toggl Projects")
+//                        }
+
+        Button(onClick = syncProjects) {
+            Text("⬇️ Sync Projects")
+        }
+
+//                        Button(onClick = { syncColors() }) {
+//                            Text("🎨 Sync Colors")
+//                        }
+    }
+}
+
+@Composable
+private fun Loading() {
+    Box(modifier = Modifier.fillMaxWidth()) {
+        CircularProgressIndicator(modifier = Modifier.align(Alignment.Center).size(20.dp))
+    }
+}
+
+@Composable
+private fun AddTime(addTimeEntries: (LocalDate?) -> Unit) {
     var from by remember { mutableStateOf<LocalDate?>(null) }
     Box {
         val dialogState = rememberMaterialDialogState()
@@ -198,93 +251,6 @@ private fun Logs(list: List<Pair<String, LogLevel>>) {
                     modifier = Modifier.fillMaxWidth()
                 )
             }
-        }
-    }
-}
-
-@Composable
-private fun Form(
-    state: MainState,
-    save: (String?, String?, FloatPeopleItem?) -> Unit
-) {
-    val togglApiKey = remember { mutableStateOf<String?>(null) }
-    val floatApiKey = remember { mutableStateOf<String?>(null) }
-    val client = remember { mutableStateOf<FloatPeopleItem?>(null) }
-
-    when {
-        state.togglApiKey.isNullOrEmpty() -> {
-            Text(
-                "🔑 Setup Toggl API Key: Please visit https://track.toggl.com/profile (click the button below) and copy the key from the 'API Token' section here & paste it in the field below.",
-                modifier = Modifier.fillMaxWidth(0.8f)
-            )
-            OutlinedButton({ openInBrowser(URI("https://track.toggl.com/profile")) }) {
-                Text("🌍 Open Toggl Website", style = MaterialTheme.typography.caption)
-            }
-            OutlinedTextField(
-                value = togglApiKey.value ?: "",
-                onValueChange = { togglApiKey.value = it },
-                label = {
-                    Text("Toggl API Key")
-                },
-                visualTransformation = PasswordVisualTransformation()
-            )
-        }
-        state.floatApiKey.isNullOrEmpty() -> {
-            Text(
-                "🔑 Setup Float API Key: Get the API key (e.g. from 1Password) & paste it in the field below:",
-                modifier = Modifier.fillMaxWidth(0.8f)
-            )
-            OutlinedTextField(value = floatApiKey.value ?: "", onValueChange = { floatApiKey.value = it }, label = {
-                Text("Float API Key")
-            }, visualTransformation = PasswordVisualTransformation())
-        }
-
-        state.peopleId == null || state.peopleId == -1 -> {
-
-            Text(
-                "🙆 Select your name from the list below:",
-                modifier = Modifier.fillMaxWidth(0.8f)
-            )
-
-            val lazyListState = rememberLazyListState()
-            Row(Modifier.fillMaxWidth(0.8f).height(300.dp)) {
-                LazyColumn(
-                    state = lazyListState,
-                    modifier = Modifier.weight(1f).border(1.dp, Color.Black, RoundedCornerShape(4.dp)).padding(8.dp)
-                ) {
-                    state.people.forEachIndexed { index, floatPeopleItem ->
-                        val isSelected = floatPeopleItem == client.value
-                        item {
-                            Text(
-                                "${floatPeopleItem.name} (${floatPeopleItem.people_id})",
-                                style = MaterialTheme.typography.caption,
-                                modifier = Modifier.clickable { client.value = floatPeopleItem }
-                                    .background(if (isSelected) Color.LightGray else Color.Transparent)
-                                    .padding(8.dp)
-                                    .fillMaxWidth()
-                            )
-                            if (index < state.people.size - 1) {
-                                Divider()
-                            }
-                        }
-                    }
-                }
-                VerticalScrollbar(
-                    modifier = Modifier.fillMaxHeight(),
-                    adapter = rememberScrollbarAdapter(lazyListState)
-                )
-            }
-
-            AnimatedVisibility(client.value != null) {
-                Text("Are you ${client.value?.name}? Then press save!")
-            }
-        }
-    }
-
-
-    if (!state.isValid) {
-        Button(onClick = { save(togglApiKey.value, floatApiKey.value, client.value) }) {
-            Text("Save")
         }
     }
 }

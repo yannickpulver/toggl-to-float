@@ -42,14 +42,12 @@ class MainViewModel {
             _state.collectLatest {
                 if (it.isValid && !initDone) {
                     initDone = true
-                    loadSwicaWeek()
+                    //loadSwicaWeek()
                     getLastEntry()
                     getWeeklyOverview()
                 }
             }
         }
-
-
     }
 
     private fun getWeeklyOverview() {

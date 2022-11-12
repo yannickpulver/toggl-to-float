@@ -9,6 +9,7 @@ val Teal200 = Color(0xFF03DAC5)
 
 val SwicaGreen = Color(0xFF179F96)
 val DarkGray = Color(0xFF6A7075)
+val LightGray = Color(0xFFc3c5c7)
 val Magenta = Color(0xFFDF007B)
 val Unread = Color(0xFFFFFBF4)
 val GreenHover8 = Color(0x1400857C)

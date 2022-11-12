@@ -1,8 +1,6 @@
 package com.appswithlove.ui
 
-import com.appswithlove.floaat.FloatOverview
-import com.appswithlove.floaat.FloatPeopleItem
-import com.appswithlove.floaat.FloatRepo
+import com.appswithlove.floaat.*
 import java.time.LocalDate
 
 data class MainState(
@@ -13,7 +11,9 @@ data class MainState(
     val logs: List<Pair<String, LogLevel>> = emptyList(),
     val loading: Boolean = false,
     val lastEntryDate: LocalDate? = null,
-    val weeklyOverview: List<FloatOverview> = emptyList()
+    val weeklyOverview: Map<FloatProject?, List<FloatOverview>> = emptyMap()
 ) {
     val isValid get() = !togglApiKey.isNullOrEmpty() && !floatApiKey.isNullOrEmpty() && peopleId != null && peopleId != -1
 }
+
+val Map<FloatProject?, List<FloatOverview>>.totalHours get() = values.flatten().totalHours

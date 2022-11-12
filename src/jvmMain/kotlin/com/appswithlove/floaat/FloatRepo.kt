@@ -81,13 +81,12 @@ class FloatRepo constructor(private val dataStore: DataStore) {
         return getAllPages<FloatPeopleItem>(endpoint).sortedBy { it.name }
     }
 
-    suspend fun getWeeklyOverview(): List<FloatOverview> {
+    suspend fun getWeeklyOverview(): Map<FloatProject?, List<FloatOverview>> {
         val monday = LocalDate.now().with(WeekFields.of(Locale.FRANCE).firstDayOfWeek)
         val sunday = monday.plusWeeks(1).minusDays(1)
         val tasks = getFloatTasks(monday, sunday)
 
         return tasks
-            .sortedByDescending { it.hours }
             .map {
                 val project = getProject(it.project_id)
                 val phase = if (it.phase_id != 0) {
@@ -95,6 +94,8 @@ class FloatRepo constructor(private val dataStore: DataStore) {
                 } else null
                 FloatOverview(it, project, phase)
             }
+            .sortedByDescending { it.weekHours }
+            .groupBy { it.project }
 
     }
 
