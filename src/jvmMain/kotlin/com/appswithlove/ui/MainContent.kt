@@ -14,17 +14,23 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import com.appswithlove.floaat.FloatPeopleItem
 import com.appswithlove.floaat.totalHours
+import com.appswithlove.ui.theme.FloaterTheme
+import com.appswithlove.ui.utils.openInBrowser
 import com.appswithlove.version
+import com.vanpra.composematerialdialogs.*
+import com.vanpra.composematerialdialogs.datetime.date.datepicker
 import java.net.URI
+import java.text.SimpleDateFormat
 import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 
 val viewModel = MainViewModel()
 
 @Composable
-@Preview
 fun MainContent() {
     val state = viewModel.state.collectAsState()
 
@@ -40,13 +46,12 @@ fun MainContent() {
 }
 
 @Composable
-@Preview
 private fun MainContent(
     state: MainState,
     clear: () -> Unit,
     fetchProjects: () -> Unit,
     archiveProjects: () -> Unit,
-    addTimeEntries: (String, String) -> Unit,
+    addTimeEntries: (LocalDate?) -> Unit,
     save: (String?, String?, FloatPeopleItem?) -> Unit,
     syncColors: () -> Unit,
 ) {
@@ -55,6 +60,7 @@ private fun MainContent(
             OutlinedButton(onClick = { clear() }, modifier = Modifier.align(Alignment.BottomEnd)) {
                 Text("Reset T2F", style = MaterialTheme.typography.caption)
             }
+
 
             Text(
                 "Version $version",
@@ -93,39 +99,7 @@ private fun MainContent(
                     }
                     Divider()
 
-                    val from = remember { mutableStateOf(LocalDate.now().toString()) }
-
-                    LaunchedEffect(state.lastEntryDate) {
-                        from.value = state.lastEntryDate?.plusDays(1)?.toString() ?: from.value
-
-                    }
-
-                    val to = remember { mutableStateOf(LocalDate.now().toString()) }
-                    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                        OutlinedTextField(
-                            from.value,
-                            { from.value = it },
-                            leadingIcon = { Text("📆") },
-                            label = { Text("From (YYYY-MM-DD)") })
-                        OutlinedTextField(
-                            to.value,
-                            { to.value = it },
-                            leadingIcon = { Text("📆") },
-                            label = { Text("To (YYYY-MM-DD)") })
-                    }
-
-                    if (from.value == to.value) {
-                        Text("Want to add time entries from ${from.value} to Float?")
-                    } else {
-                        Text("Want to add time entries from ${from.value} - ${to.value} to Float?")
-
-                    }
-
-                    Row {
-                        Button(onClick = { addTimeEntries(from.value, to.value) }) {
-                            Text("Add time entries 🚀")
-                        }
-                    }
+                    TimeEntries(addTimeEntries = addTimeEntries)
                 }
 
                 if (state.loading) {
@@ -163,7 +137,48 @@ private fun MainContent(
 }
 
 @Composable
-@Preview
+private fun TimeEntries(addTimeEntries: (LocalDate?) -> Unit) {
+    var from by remember { mutableStateOf<LocalDate?>(null) }
+    Box {
+        val dialogState = rememberMaterialDialogState()
+        MaterialDialog(
+            dialogState = dialogState,
+            buttons = {
+                positiveButton("Ok")
+                negativeButton("Cancel")
+            },
+            properties = MaterialDialogProperties(
+                size = DpSize(300.dp, 500.dp),
+                position = DesktopWindowPosition(Alignment.Center)
+            )
+        ) {
+            datepicker { date ->
+                from = LocalDate.of(date.year, date.month, date.dayOfMonth)
+            }
+        }
+
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text("Time Entry", style = MaterialTheme.typography.h4)
+
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+
+                OutlinedButton(onClick = { dialogState.show() }) {
+                    Text(from?.format(DateTimeFormatter.ofPattern("dd.MM.yyyy")) ?: "Select date...")
+                }
+
+                AnimatedVisibility(from != null) {
+                    Button(onClick = { addTimeEntries(from) }) {
+                        Text("Add time entries 🚀")
+                    }
+                }
+            }
+        }
+    }
+
+
+}
+
+@Composable
 private fun Logs(list: List<Pair<String, LogLevel>>) {
     val logs = remember(list) { list.reversed() }
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -188,7 +203,6 @@ private fun Logs(list: List<Pair<String, LogLevel>>) {
 }
 
 @Composable
-@Preview
 private fun Form(
     state: MainState,
     save: (String?, String?, FloatPeopleItem?) -> Unit
@@ -272,5 +286,29 @@ private fun Form(
         Button(onClick = { save(togglApiKey.value, floatApiKey.value, client.value) }) {
             Text("Save")
         }
+    }
+}
+
+
+@Preview
+@Composable
+fun EmptyPreview() {
+    FloaterTheme {
+        MainContent(MainState(), {}, {}, {}, { }, { _, _, _ -> }, {})
+    }
+}
+
+@Preview
+@Composable
+fun ValidPreview() {
+    FloaterTheme {
+        MainContent(
+            MainState(floatApiKey = "sdljf", togglApiKey = "sdf", peopleId = 123),
+            {},
+            {},
+            {},
+            { },
+            { _, _, _ -> },
+            {})
     }
 }

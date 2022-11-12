@@ -71,14 +71,8 @@ class FloatRepo constructor(private val dataStore: DataStore) {
         return "https://api.float.com/v3"
     }
 
-    private fun getFloatApiKey(): String {
-        var key: String? = dataStore.getStore.floatKey
-        while (key.isNullOrEmpty()) {
-            Logger.log("🔑 Setup Float API Key: Please get the API key from an account owner (e.g. Andrea Zeller) + click Enter:")
-            key = readLine()
-            dataStore.setFloatApiKey(key)
-        }
-        return key
+    private fun getFloatApiKey(): String? {
+        return dataStore.getStore.floatKey
     }
 
     suspend fun getFloatPeople(): List<FloatPeopleItem> {

@@ -26,9 +26,11 @@ kotlin {
         val jvmMain by getting {
             dependencies {
                 implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.3.3")
+                implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.4.0")
                 implementation(compose.desktop.currentOs)
                 implementation("io.ktor:ktor-client-core:2.1.0")
                 implementation("io.ktor:ktor-client-cio:2.1.0")
+                implementation("ca.gosyer:compose-material-dialogs-datetime:0.8.0")
             }
         }
         val jvmTest by getting
@@ -39,7 +41,7 @@ kotlin {
 compose.desktop {
     application {
         mainClass = "com.appswithlove.MainKt"
-        javaHome = System.getenv("JDK_15")
+        javaHome = "~/Library/Java/JavaVirtualMachines/corretto-15.0.2"
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Exe)
             packageName = "Toggl2Float"

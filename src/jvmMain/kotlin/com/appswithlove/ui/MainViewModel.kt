@@ -24,6 +24,7 @@ class MainViewModel {
     private val dataStore = DataStore()
     private val float = FloatRepo(dataStore)
     private val toggl = TogglRepo(dataStore)
+    private var initDone: Boolean = false
 
     private val _state = MutableStateFlow(MainState(loading = true))
     val state: StateFlow<MainState> = combine(_state, Logger.logs) { state, logs ->
@@ -36,9 +37,18 @@ class MainViewModel {
 
     init {
         refresh()
-        loadSwicaWeek()
-        getLastEntry()
-        getWeeklyOverview()
+
+        CoroutineScope(Dispatchers.IO).launch {
+            _state.collectLatest {
+                if (it.isValid && !initDone) {
+                    initDone = true
+                    loadSwicaWeek()
+                    getLastEntry()
+                    getWeeklyOverview()
+                }
+            }
+        }
+
 
     }
 
@@ -115,14 +125,14 @@ class MainViewModel {
         }
     }
 
-    fun addTimeEntries(from: String, to: String) {
+    fun addTimeEntries(from: LocalDate?) {
+        from ?: return // todo add snackbar
 
         try {
-            val fromDate = LocalDate.parse(from)
-            val toDate = LocalDate.parse(to)
+            //val toDate = LocalDate.parse(to)
 
             CoroutineScope(Dispatchers.IO).launch {
-                addTimeEntries(fromDate, toDate)
+                addTimeEntries(from, from)
             }
         } catch (exception: java.lang.Exception) {
             Logger.err("Double check your dates to have format YYYY-MM-DD")
