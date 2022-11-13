@@ -103,6 +103,7 @@ class MainViewModel {
         Logger.clear()
         dataStore.clear()
         refresh()
+        _state.update { it.copy(togglApiKey = null, floatApiKey = null, peopleId = null) }
     }
 
     fun fetchProjects() {
@@ -166,8 +167,6 @@ class MainViewModel {
 
         val floatProjects = float.getFloatProjects()
         val togglProjects = toggl.getTogglProjects()
-
-        Logger.log(togglProjects.toString())
         val newProjects =
             floatProjects.filter { floatProject -> !togglProjects.any { it.name.contains(floatProject.first) } }
                 .map {

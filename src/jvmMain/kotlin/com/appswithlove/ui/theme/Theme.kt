@@ -13,9 +13,9 @@ private val DarkColorPalette = darkColors(
 )
 
 private val LightColorPalette = lightColors(
-    primary = SwicaGreen,
-    primaryVariant = SwicaGreen,
-    secondary = SwicaGreen
+    primary = Black,
+    primaryVariant = Black,
+    secondary = Black
 
     /* Other default colors to override
     background = Color.White,

@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -18,6 +19,7 @@ import com.appswithlove.floaat.FloatPeopleItem
 import com.appswithlove.ui.MainState
 import com.appswithlove.ui.utils.openInBrowser
 import java.net.URI
+import java.time.LocalDate
 
 @Composable
 fun SetupForm(
@@ -27,6 +29,17 @@ fun SetupForm(
     val togglApiKey = remember { mutableStateOf(state.togglApiKey) }
     val floatApiKey = remember { mutableStateOf(state.floatApiKey) }
     val client = remember { mutableStateOf(state.people.find { it.people_id == state.peopleId }) }
+    LaunchedEffect(state.togglApiKey) {
+        togglApiKey.value = state.togglApiKey
+    }
+    LaunchedEffect(state.floatApiKey) {
+        floatApiKey.value = state.floatApiKey
+    }
+    LaunchedEffect(state.peopleId) {
+        client.value = state.people.find { it.people_id == state.peopleId }
+    }
+
+    Text("Happy ${LocalDate.now().dayOfWeek.toString().lowercase().capitalize()}! 🎉", style = MaterialTheme.typography.h4)
 
     when {
         state.togglApiKey.isNullOrEmpty() -> {
@@ -70,7 +83,7 @@ private fun TogglSetup(key: String, onChange: (String) -> Unit) {
         modifier = Modifier.fillMaxWidth(0.8f)
     )
     OutlinedButton({ openInBrowser(URI("https://track.toggl.com/profile")) }) {
-        Text("🌍 Open Toggl Website", style = MaterialTheme.typography.caption)
+        Text("🌍 Open Toggl Website")
     }
     OutlinedTextField(
         value = key,
