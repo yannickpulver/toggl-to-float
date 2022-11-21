@@ -29,15 +29,11 @@ data class TogglProjectCreate(
 )
 
 @Serializable
-data class TogglProjectUpdateName(
-    val name: String,
-)
-
-@Serializable
 data class TogglProjectUpdate(
+    val name: String? = null,
     val color: String? = null,
+    val active: Boolean = true
 )
-
 fun randomColor() : String {
     val r: Int = Random.nextInt(255)
     val g: Int = Random.nextInt(255)

@@ -192,18 +192,25 @@ class MainViewModel {
         val togglProjects = toggl.getTogglProjects()
 
         val modifiedProjects =
-            floatProjects.filter { floatProject -> togglProjects.any { it.projectIdNew == floatProject.id && it.name != floatProject.name } }
+            floatProjects.filter { floatProject -> togglProjects.any { it.projectIdNew == floatProject.id && (it.name != floatProject.name || it.active != floatProject.isActive) } }
                 .map { floatProject ->
                     val colorString = floatColorToTogglColor(floatProject.color)
-                    TogglProjectCreate(name = floatProject.name, color = colorString, id = togglProjects.firstOrNull { it.projectIdNew == floatProject.id }?.id ?: -1)
+                    TogglProjectCreate(
+                        name = floatProject.name,
+                        color = colorString,
+                        id = togglProjects.firstOrNull { it.projectIdNew == floatProject.id }?.id ?: -1,
+                        active = floatProject.isActive
+                    )
                 }
 
         val newProjects =
             floatProjects.filterNot { floatProject -> togglProjects.any { it.projectIdNew == floatProject.id } }
+                .filter { it.isActive }
                 .map {
                     val colorString = floatColorToTogglColor(it.color)
                     TogglProjectCreate(name = it.name, color = colorString, id = it.id)
                 }
+
 
 //        val newProjects =
 //            floatProjects.filter { floatProject -> !togglProjects.any { it.name.contains(floatProject.first) } }
@@ -226,7 +233,10 @@ class MainViewModel {
             Logger.log("🎉 No modified Projects found")
 
         }
+
         migrateTimeEntries(workspace)
+        Logger.log("🎉 Sync Complete.")
+
     }
 
     suspend fun removeOldProjects() {
@@ -239,16 +249,15 @@ class MainViewModel {
 
 
     suspend fun migrateTimeEntries(workspace: TogglWorkspaceItem) {
-        Logger.log("🐧 Migrating time entries from last 3 months")
+        Logger.log("🐧 Checking if migrations needed for time entries in the past 2 months")
         delay(2000)
         // Modify entries
-        val entries = toggl.getTogglTimeEntries(LocalDate.now().minusMonths(3), LocalDate.now())
+        val entries = toggl.getTogglTimeEntries(LocalDate.now().minusMonths(2), LocalDate.now())
         val modifiedEntries = mutableListOf<Pair<Long, TimeEntryUpdate>>()
 
         val projects = toggl.getTogglProjects()
 
         entries.forEachIndexed { index, it ->
-            Logger.log("🐧 Checking time entries $index/${entries.size}")
             val project = it.project_id?.let { id -> projects.find { it.id == id } }
             if (project != null) {
                 val id = project.phaseId ?: project.projectId
@@ -258,7 +267,6 @@ class MainViewModel {
                 }
             }
         }
-
         toggl.putTimeEntries(workspace.id, modifiedEntries)
     }
 

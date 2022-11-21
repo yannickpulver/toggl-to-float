@@ -203,7 +203,10 @@ class FloatRepo constructor(private val dataStore: DataStore) {
         val id: Int,
         val name: String,
         val color: String?,
-    )
+        val active: Int? = null
+    ) {
+        val isActive = active != 0
+    }
 
     data class FloatProjectItem(
         val project: FloatProject,
@@ -218,9 +221,9 @@ class FloatRepo constructor(private val dataStore: DataStore) {
         }
 
         val asNumberList = buildList {
-            add(FloatProjectCreate(project.project_id, project.asStringNew(), project.color))
+            add(FloatProjectCreate(project.project_id, project.asStringNew(), project.color, project.active))
             phases.forEach {
-                add(FloatProjectCreate(it.phase_id, project.asStringNew(it), it.color))
+                add(FloatProjectCreate(it.phase_id, project.asStringNew(it), it.color, it.active))
             }
         }
     }

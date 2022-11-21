@@ -89,7 +89,7 @@ class TogglRepo constructor(private val dataStore: DataStore) {
             }
             Logger.log("Progress:️ ${index + 1}/${newProjects.size}")
         }
-        Logger.log("🎉 Your Float projects are now available in Toggl!")
+        Logger.log("🎉 Synced new Float projects to Toggl!")
     }
 
     suspend fun putProjectsToToggl(
@@ -101,14 +101,14 @@ class TogglRepo constructor(private val dataStore: DataStore) {
             val api = "https://api.track.toggl.com/api/v9/workspaces/${workspaceId}/projects/${it.id}"
             var projectResponse: HttpResponse? = null
             while (projectResponse?.status != HttpStatusCode.OK) {
-                projectResponse = putRequest(api, json.encodeToString(TogglProjectUpdateName(it.name)), togglApiKey)
+                projectResponse = putRequest(api, json.encodeToString(TogglProjectUpdate(it.name, it.color, it.active)), togglApiKey)
                 if (projectResponse.status != HttpStatusCode.OK && projectResponse.status != HttpStatusCode.TooManyRequests) {
                     Logger.log("Error happened - ${projectResponse.bodyAsText()}")
                 }
             }
             Logger.log("Progress:️ ${index + 1}/${updatedProjects.size}")
         }
-        Logger.log("🎉 Your Float projects are now available in Toggl!")
+        Logger.log("🎉 Synced changed Float projects to Toggl!")
     }
 
     suspend fun deleteProjects(
@@ -147,7 +147,7 @@ class TogglRepo constructor(private val dataStore: DataStore) {
             }
             Logger.log("Progress:️ ${index + 1}/${updatesTimeEntries.size}")
         }
-        Logger.log("🎉 Your Time entries are now changed in Toggl!")
+        Logger.log("🎉 Time entries are uptodate in Toggl!")
     }
 
     suspend fun updateProjectColors(
@@ -161,7 +161,7 @@ class TogglRepo constructor(private val dataStore: DataStore) {
             while (projectResponse?.status != HttpStatusCode.OK) {
                 projectResponse = putRequest(
                     api + "/${it.project_id}",
-                    json.encodeToString(TogglProjectUpdate(it.color)),
+                    json.encodeToString(TogglProjectUpdate(color = it.color)),
                     togglApiKey
                 )
                 if (projectResponse.status != HttpStatusCode.OK) {
