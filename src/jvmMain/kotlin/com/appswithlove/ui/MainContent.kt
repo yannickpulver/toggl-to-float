@@ -46,6 +46,7 @@ fun MainContent() {
         state = state.value,
         clear = viewModel::clear,
         syncProjects = viewModel::fetchProjects,
+        removeProjects = viewModel::removeProjects,
         archiveProjects = viewModel::archiveProjects,
         addTimeEntries = viewModel::addTimeEntries,
         save = viewModel::save,
@@ -67,6 +68,7 @@ private fun MainContent(
     state: MainState,
     clear: () -> Unit,
     syncProjects: () -> Unit,
+    removeProjects: () -> Unit,
     archiveProjects: () -> Unit,
     addTimeEntries: (LocalDate?) -> Unit,
     save: (String?, String?, FloatPeopleItem?) -> Unit,
@@ -81,7 +83,7 @@ private fun MainContent(
                 ) {
                     when {
                         state.isValid -> {
-                            Welcome(syncProjects)
+                            Welcome(syncProjects, removeProjects)
                             Divider()
                             AddTime(addTimeEntries = addTimeEntries, state.missingEntryDates)
                             Divider()
@@ -183,7 +185,7 @@ private fun YourWeek(state: MainState) {
 }
 
 @Composable
-private fun Welcome(syncProjects: () -> Unit) {
+private fun Welcome(syncProjects: () -> Unit, removeProjects: () -> Unit) {
     Text(
         "Happy ${LocalDate.now().dayOfWeek.toString().lowercase().capitalize()}! 🎉",
         style = MaterialTheme.typography.h4
@@ -204,6 +206,10 @@ private fun Welcome(syncProjects: () -> Unit) {
 
         Button(onClick = syncProjects) {
             Text("Sync Projects")
+        }
+
+        Button(onClick = removeProjects) {
+            Text("⚠️ Remove old projects (sync first)")
         }
 
 //                        Button(onClick = { syncColors() }) {
@@ -301,7 +307,7 @@ private fun Logs(list: List<Pair<String, LogLevel>>) {
 @Composable
 fun EmptyPreview() {
     FloaterTheme {
-        MainContent(MainState(), {}, {}, {}, { }, { _, _, _ -> }, {})
+        MainContent(MainState(), {}, {}, {}, { }, {}, { _, _, _ -> }, {})
     }
 }
 
@@ -314,6 +320,7 @@ fun ValidPreview() {
             {},
             {},
             {},
+            { },
             { },
             { _, _, _ -> },
             {})

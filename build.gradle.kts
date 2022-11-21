@@ -27,7 +27,7 @@ kotlin {
             dependencies {
                 implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.3.3")
                 implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.4.0")
-                implementation(compose.desktop.currentOs)
+                implementation(compose.desktop.macos_arm64)
                 implementation("io.ktor:ktor-client-core:2.1.0")
                 implementation("io.ktor:ktor-client-cio:2.1.0")
                 implementation("ca.gosyer:compose-material-dialogs-datetime:0.8.0")
@@ -46,7 +46,7 @@ compose.desktop {
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Exe)
             packageName = "Toggl2Float"
-            packageVersion = "1.0.1"
+            packageVersion = "1.0.2"
             macOS {
                 iconFile.set(project.file("icon.icns"))
                 bundleID = "com.appswithlove.toggl2float"
@@ -54,6 +54,10 @@ compose.desktop {
             windows {
                 iconFile.set(project.file("icon.ico"))
             }
+        }
+        buildTypes.release.proguard {
+            configurationFiles.from(project.file("compose-desktop.pro"))
+            obfuscate.set(false)
         }
     }
 }

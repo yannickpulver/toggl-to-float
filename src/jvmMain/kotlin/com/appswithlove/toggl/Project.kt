@@ -22,4 +22,7 @@ data class Project(
             val phase = "\\((\\d*)\\)".toRegex().findAll(name).lastOrNull()?.groupValues?.lastOrNull()?.toIntOrNull()
             return if (phase == projectId) null else phase
         }
+
+    val projectIdNew: Int? get() = "\\[(\\d*)]".toRegex().findAll(name).firstOrNull()?.groupValues?.lastOrNull()?.toIntOrNull()
+
 }

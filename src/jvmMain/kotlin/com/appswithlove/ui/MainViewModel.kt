@@ -1,16 +1,18 @@
 package com.appswithlove.ui
 
 import TimeEntryForPublishing
+import TimeEntryUpdate
 import androidx.compose.ui.graphics.toArgb
 import com.appswithlove.floaat.FloatPeopleItem
 import com.appswithlove.floaat.FloatRepo
 import com.appswithlove.floaat.hex2Rgb
 import com.appswithlove.store.DataStore
-import com.appswithlove.toggl.TogglProject
 import com.appswithlove.toggl.TogglProjectCreate
 import com.appswithlove.toggl.TogglRepo
+import com.appswithlove.toggl.TogglWorkspaceItem
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -42,7 +44,7 @@ class MainViewModel {
             _state.collectLatest {
                 if (it.isValid && !initDone) {
                     initDone = true
-                    loadSwicaWeek()
+                    //loadSwicaWeek()
                     getLastEntry()
                     getMissingEntries()
                     getWeeklyOverview()
@@ -55,7 +57,7 @@ class MainViewModel {
         CoroutineScope(Dispatchers.IO).launch {
             val start = LocalDate.now().minusWeeks(2)
             val end = LocalDate.now()
-            val entries = float.getDatesWithoutTimeEntries(start = start, end =end)
+            val entries = float.getDatesWithoutTimeEntries(start = start, end = end)
             val togglEntries = toggl.getDatesWithTimeEntries(start, end)
             val missingEntries = entries.filter { togglEntries.contains(it) }
             _state.update { it.copy(missingEntryDates = missingEntries.sorted()) }
@@ -130,6 +132,12 @@ class MainViewModel {
         }
     }
 
+    fun removeProjects() {
+        CoroutineScope(Dispatchers.IO).launch {
+            removeOldProjects()
+        }
+    }
+
     fun updateColors() {
         CoroutineScope(Dispatchers.IO).launch {
             updateProjectColors()
@@ -143,7 +151,7 @@ class MainViewModel {
             //val toDate = LocalDate.parse(to)
 
             CoroutineScope(Dispatchers.IO).launch {
-                addTimeEntries(from, from)
+                addTimeEntries(from)
                 if (state.value.missingEntryDates.contains(from)) {
                     _state.update { it.copy(missingEntryDates = it.missingEntryDates.filter { it != from }) }
                 }
@@ -180,25 +188,88 @@ class MainViewModel {
     private suspend fun fetchProjectsInt() {
         val workspace = toggl.getWorkspaces() ?: throw Exception("Couldn't get Toggle Workspace")
 
-        val floatProjects = float.getFloatProjects()
+        val floatProjects = float.getFloatProjects().map { it.asNumberList }.flatten()
         val togglProjects = toggl.getTogglProjects()
-        val newProjects =
-            floatProjects.filter { floatProject -> !togglProjects.any { it.name.contains(floatProject.first) } }
-                .map {
-                    val colorString = floatColorToTogglColor(it.second)
-                    TogglProjectCreate(name = it.first, color = colorString)
+
+        val modifiedProjects =
+            floatProjects.filter { floatProject -> togglProjects.any { it.projectIdNew == floatProject.id && (it.name != floatProject.name || it.active != floatProject.isActive) } }
+                .map { floatProject ->
+                    val colorString = floatColorToTogglColor(floatProject.color)
+                    TogglProjectCreate(
+                        name = floatProject.name,
+                        color = colorString,
+                        id = togglProjects.firstOrNull { it.projectIdNew == floatProject.id }?.id ?: -1,
+                        active = floatProject.isActive
+                    )
                 }
+
+        val newProjects =
+            floatProjects.filterNot { floatProject -> togglProjects.any { it.projectIdNew == floatProject.id } }
+                .filter { it.isActive }
+                .map {
+                    val colorString = floatColorToTogglColor(it.color)
+                    TogglProjectCreate(name = it.name, color = colorString, id = it.id)
+                }
+
+
+//        val newProjects =
+//            floatProjects.filter { floatProject -> !togglProjects.any { it.name.contains(floatProject.first) } }
+//                .map {
+//                    val colorString = floatColorToTogglColor(it.second)
+//                    TogglProjectCreate(name = it.first, color = colorString)
+//                }
 
         if (newProjects.isNotEmpty()) {
             Logger.log("⬆️ Syncing new Float projects to Toggl — (${newProjects.size}) of ${floatProjects.size}")
             Logger.log("---")
+            toggl.pushProjectsToToggl(workspace.id, newProjects)
         } else {
-            Logger.log("🎉 All Float Projects already up-to-date in Toggl!")
-            return
+            Logger.log("🎉 No new Projects found")
+        }
+        if (modifiedProjects.isNotEmpty()) {
+            Logger.log("⬆️ Syncing modified Float projects to Toggl — (${newProjects.size}) of ${floatProjects.size}")
+            toggl.putProjectsToToggl(workspace.id, modifiedProjects)
+        } else {
+            Logger.log("🎉 No modified Projects found")
+
         }
 
-        toggl.pushProjectsToToggl(workspace.id, newProjects)
+        migrateTimeEntries(workspace)
+        Logger.log("🎉 Sync Complete.")
+
     }
+
+    suspend fun removeOldProjects() {
+        val workspace = toggl.getWorkspaces() ?: throw Exception("Couldn't get Toggle Workspace")
+        val togglProjects = toggl.getTogglProjects()
+
+        val toremove = togglProjects.filter { it.projectId != null && it.projectIdNew == null }
+        toggl.deleteProjects(workspace.id, toremove.map { it.id })
+    }
+
+
+    suspend fun migrateTimeEntries(workspace: TogglWorkspaceItem) {
+        Logger.log("🐧 Checking if migrations needed for time entries in the past 2 months")
+        delay(2000)
+        // Modify entries
+        val entries = toggl.getTogglTimeEntries(LocalDate.now().minusMonths(2), LocalDate.now())
+        val modifiedEntries = mutableListOf<Pair<Long, TimeEntryUpdate>>()
+
+        val projects = toggl.getTogglProjects()
+
+        entries.forEachIndexed { index, it ->
+            val project = it.project_id?.let { id -> projects.find { it.id == id } }
+            if (project != null) {
+                val id = project.phaseId ?: project.projectId
+                val projectId = projects.find { it.name.contains("[$id]") }?.id
+                if (projectId != null) {
+                    modifiedEntries.add(it.id to TimeEntryUpdate(projectId))
+                }
+            }
+        }
+        toggl.putTimeEntries(workspace.id, modifiedEntries)
+    }
+
 
     private suspend fun updateProjectColors() {
         val workspace = toggl.getWorkspaces() ?: throw Exception("Couldn't get Toggle Workspace")
@@ -206,26 +277,26 @@ class MainViewModel {
         val floatProjects = float.getFloatProjects()
         val togglProjects = toggl.getTogglProjects()
 
-        val existingProjects =
-            floatProjects.filter { floatProject -> togglProjects.any { it.name.contains(floatProject.first) } }
-                .map { floatProject ->
-                    val colorString = floatColorToTogglColor(floatProject.second)
-                    TogglProject(
-                        name = floatProject.first,
-                        color = colorString,
-                        project_id = togglProjects.firstOrNull { it.name.contains(floatProject.first) }?.id ?: -1
-                    )
-                }
-
-        if (existingProjects.isNotEmpty()) {
-            Logger.log("⬆️ Syncing Colors to Toggl — (${existingProjects.size}) of ${floatProjects.size}")
-            Logger.log("---")
-        } else {
-            Logger.log("🎉 All Float projects already up-to-date in Toggl!")
-            return
-        }
-
-        toggl.updateProjectColors(workspace.id, existingProjects)
+//        val existingProjects =
+//            floatProjects.filter { floatProject -> togglProjects.any { it.name.contains(floatProject.first) } }
+//                .map { floatProject ->
+//                    val colorString = floatColorToTogglColor(floatProject.second)
+//                    TogglProject(
+//                        name = floatProject.first,
+//                        color = colorString,
+//                        project_id = togglProjects.firstOrNull { it.name.contains(floatProject.first) }?.id ?: -1
+//                    )
+//                }
+//
+//        if (existingProjects.isNotEmpty()) {
+//            Logger.log("⬆️ Syncing Colors to Toggl — (${existingProjects.size}) of ${floatProjects.size}")
+//            Logger.log("---")
+//        } else {
+//            Logger.log("🎉 All Float projects already up-to-date in Toggl!")
+//            return
+//        }
+//
+//        toggl.updateProjectColors(workspace.id, existingProjects)
     }
 
 
@@ -239,9 +310,9 @@ class MainViewModel {
     }
 
 
-    private suspend fun addTimeEntries(from: LocalDate, to: LocalDate) {
-        val timeEntries = toggl.getTogglTimeEntries(from, to)
-        Logger.log("⏱ Found ${timeEntries.size} time entries for $from - $to on Toggl!")
+    private suspend fun addTimeEntries(date: LocalDate) {
+        val timeEntries = toggl.getTogglTimeEntries(date, date)
+        Logger.log("⏱ Found ${timeEntries.size} time entries for $date on Toggl!")
         if (timeEntries.isEmpty()) {
             Logger.log("Noting to do here. Do you even work?")
             return
@@ -249,16 +320,16 @@ class MainViewModel {
         val projects = toggl.getTogglProjects()
         val pairs = timeEntries.map { time -> time to projects.firstOrNull { it.id == time.project_id } }
 
-        val timeEntriesOnDate = float.getFloatTimeEntries(from, to)
+        val timeEntriesOnDate = float.getFloatTimeEntries(date, date)
         if (timeEntriesOnDate.isNotEmpty()) {
             Logger.log("---")
-            Logger.err("⚠️ There are already existing time entries for that date. Can't guarantee to not mess up. So please remove them first for $from - $to")
+            Logger.err("⚠️ There are already existing time entries for that date. Can't guarantee to not mess up. So please remove them first for $date")
             return
         }
 
-        if (pairs.any { it.second?.projectId == null }) {
+        if (pairs.any { it.second?.projectIdNew == null }) {
             Logger.err("⚠️ Some time entries don't have a valid project assigned. Please fix this and try again.")
-            pairs.filter { it.second?.projectId == null }.forEach {
+            pairs.filter { it.second?.projectIdNew == null }.forEach {
                 Logger.log("  - ${it.first.description}")
             }
             return
@@ -267,12 +338,11 @@ class MainViewModel {
         val data = pairs.map { (timeEntry, project) ->
             TimeEntryForPublishing(
                 timeEntry = timeEntry,
-                projectId = project?.projectId ?: -1,
-                phaseId = project?.phaseId
+                id = project?.projectIdNew ?: -1,
             )
         }
 
-        float.pushToFloat(from, to, data)
+        float.pushToFloat(date, data)
     }
 
 

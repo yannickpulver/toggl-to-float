@@ -9,7 +9,7 @@ data class FloatPhaseItem(
     val start_date: String,
     val end_date: String,
     val active: Int? = null,
-    val phase_id: Int? = null,
+    val phase_id: Int,
     val budget_total: String? = null,
     val color: String? = null,
     val created: String? = null,

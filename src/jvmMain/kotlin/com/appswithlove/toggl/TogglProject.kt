@@ -25,13 +25,15 @@ data class TogglProjectCreate(
     val is_private: Boolean = false,
     val name: String,
     val color: String? = null,
+    val id: Int
 )
 
 @Serializable
 data class TogglProjectUpdate(
+    val name: String? = null,
     val color: String? = null,
+    val active: Boolean = true
 )
-
 fun randomColor() : String {
     val r: Int = Random.nextInt(255)
     val g: Int = Random.nextInt(255)

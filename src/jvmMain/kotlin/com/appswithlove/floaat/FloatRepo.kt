@@ -20,23 +20,25 @@ import kotlin.math.roundToInt
 import kotlin.streams.toList
 
 class FloatRepo constructor(private val dataStore: DataStore) {
-    suspend fun pushToFloat(from: LocalDate, to: LocalDate, pairs: List<TimeEntryForPublishing>) {
+    suspend fun pushToFloat(date: LocalDate, pairs: List<TimeEntryForPublishing>) {
         Logger.log("⬆️ Uploading ${pairs.size} time entries to Float!")
         Logger.log("---")
         val floatUrl = getFloatUrl()
         val endpoint = "$floatUrl/logged-time"
 
+
         val timeEntries = pairs.map {
+            val phase = getPhase(it.id)
 
             val description = it.timeEntry.description
 
             FloatTimeEntriesItem(
-                project_id = it.projectId,
+                project_id = phase?.project_id ?: it.id,
                 date = it.timeEntry.start.split("T").firstOrNull().orEmpty(),
                 hours = it.timeEntry.duration / 60.0 / 60.0,
                 notes = description,
                 people_id = getFloatClientId(),
-                phase_id = it.phaseId
+                phase_id = phase?.phase_id
             )
         }
 
@@ -50,7 +52,7 @@ class FloatRepo constructor(private val dataStore: DataStore) {
             }
             Logger.log("Posting (${index + 1}/${timeEntries.size}): ${it.notes}")
         }
-        Logger.log("💯 Uploaded all time entries to Float for $from - $to")
+        Logger.log("💯 Uploaded all time entries to Float for $date")
         val totalEntriesSaved = dataStore.addAndGetTimeEntryCount(timeEntries.size)
         val timeSaved = getTimeSaved(timeEntries.size)
         val totalTimeSaved = getTimeSaved(totalEntriesSaved)
@@ -134,7 +136,11 @@ class FloatRepo constructor(private val dataStore: DataStore) {
         val floatUrl = getFloatUrl()
         val endpoint = "$floatUrl/phases/$id"
         val response = getRequest(url = endpoint)
-        return json.decodeFromString(response.body())
+        return try {
+            json.decodeFromString(response.body())
+        } catch (e: Exception) {
+            null
+        }
 
     }
 
@@ -193,7 +199,36 @@ class FloatRepo constructor(private val dataStore: DataStore) {
         return clientId
     }
 
-    suspend fun getFloatProjects(): List<Pair<String, String?>> {
+    data class FloatProjectCreate(
+        val id: Int,
+        val name: String,
+        val color: String?,
+        val active: Int? = null
+    ) {
+        val isActive = active != 0
+    }
+
+    data class FloatProjectItem(
+        val project: FloatProject,
+        val phases: List<FloatPhaseItem>
+    ) {
+
+        val projectStrings = buildList {
+            add(project.asString() to project.color)
+            phases.forEach {
+                add(project.asString(it) to it.color)
+            }
+        }
+
+        val asNumberList = buildList {
+            add(FloatProjectCreate(project.project_id, project.asStringNew(), project.color, project.active))
+            phases.forEach {
+                add(FloatProjectCreate(it.phase_id, project.asStringNew(it), it.color, it.active))
+            }
+        }
+    }
+
+    suspend fun getFloatProjects(): List<FloatProjectItem> {
         val floatUrl = getFloatUrl()
         Logger.log("Downloading Float Projects ⬇️")
 
@@ -202,16 +237,7 @@ class FloatRepo constructor(private val dataStore: DataStore) {
         val phases = getAllPages<FloatPhaseItem>("$floatUrl/phases")
         val grouped = projectList.associateWith { project -> phases.filter { it.project_id == project.project_id } }
 
-
-        val projects = grouped.map { project ->
-            buildList {
-                add(project.key.asString() to project.key.color)
-                project.value.forEach {
-                    add(project.key.asString(it) to it.color)
-                }
-            }
-        }.flatten()
-        return projects
+        return grouped.map { FloatProjectItem(it.key, it.value) }
     }
 
 
@@ -223,16 +249,6 @@ class FloatRepo constructor(private val dataStore: DataStore) {
             //.filterNot { it.dayOfWeek in listOf(DayOfWeek.SATURDAY, DayOfWeek.SUNDAY) } // only weekdays for now
             .filterNot { datesWithEntries.contains(it) }
 
-    }
-
-
-    private fun FloatProject.asString(item: FloatPhaseItem? = null): String {
-        return buildString {
-            append("$name ($project_id)")
-            if (item != null) {
-                append(" - ${item.name} (${item.phase_id})")
-            }
-        }
     }
 
     private suspend fun getRequest(
@@ -263,4 +279,24 @@ class FloatRepo constructor(private val dataStore: DataStore) {
     }
 
 
+}
+
+
+fun FloatProject.asString(item: FloatPhaseItem? = null): String {
+    return buildString {
+        append("$name ($project_id)")
+        if (item != null) {
+            append(" - ${item.name} (${item.phase_id})")
+        }
+    }
+}
+
+fun FloatProject.asStringNew(item: FloatPhaseItem? = null): String {
+    return buildString {
+        if (item != null) {
+            append("$name - ${item.name} [${item.phase_id}]")
+        } else {
+            append("$name [$project_id]")
+        }
+    }
 }
