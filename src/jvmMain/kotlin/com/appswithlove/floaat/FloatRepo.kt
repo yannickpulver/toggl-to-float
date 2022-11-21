@@ -13,7 +13,6 @@ import io.ktor.http.*
 import io.ktor.util.*
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
-import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.temporal.WeekFields
 import java.util.*
@@ -139,12 +138,12 @@ class FloatRepo constructor(private val dataStore: DataStore) {
 
     }
 
-    private suspend inline fun <reified T> getAllPages(baseUrl: String): List<T> {
+    private suspend inline fun <reified T> getAllPages(baseUrl: String, params: String? = null): List<T> {
         var page = 1
         val peopleList = mutableListOf<T>()
 
         while (true) { //fcking dangerous
-            val api = "$baseUrl?page=$page&per-page=200"
+            val api = "$baseUrl?page=$page&per-page=200${params?.let { "&$it" }}"
             val response = getRequest(url = api)
             val projects = json.decodeFromString<List<T>>(response.body())
             if (projects.isEmpty()) break
@@ -152,7 +151,7 @@ class FloatRepo constructor(private val dataStore: DataStore) {
             val totalItems =
                 response.headers.toMap().getOrDefault("X-Pagination-Total-Count", emptyList()).firstOrNull()
                     ?.toFloatOrNull() ?: 1f
-            Logger.log("Downloading - Progress: ${(peopleList.size.toFloat() / totalItems) * 100f}%")
+            //Logger.log("Downloading - Progress: ${(peopleList.size.toFloat() / totalItems) * 100f}%")
             page += 1
         }
 
@@ -162,22 +161,8 @@ class FloatRepo constructor(private val dataStore: DataStore) {
     suspend fun getFloatTimeEntries(from: LocalDate, to: LocalDate): List<FloatTimeEntriesItem> {
         val floatUrl = getFloatUrl()
         val userId = getFloatClientId()
-        val endpoint = "$floatUrl/logged-time?start_date=$from&end_date=$to&people_id=$userId"
-
-        val response = getRequest(url = endpoint)
-        return json.decodeFromString(response.body())
+        return getAllPages("$floatUrl/logged-time", "start_date=$from&end_date=$to&people_id=$userId")
     }
-
-
-    suspend fun getFloatTimeEntries(): List<FloatTimeEntriesItem> {
-        val floatUrl = getFloatUrl()
-        val userId = getFloatClientId()
-        val endpoint = "$floatUrl/logged-time?people_id=$userId"
-
-        val response = getRequest(url = endpoint)
-        return json.decodeFromString(response.body())
-    }
-
 
     suspend fun getFloatClientId(): Int {
         var clientId: Int? = dataStore.getStore.floatClientId

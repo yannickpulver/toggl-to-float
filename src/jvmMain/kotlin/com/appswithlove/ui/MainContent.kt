@@ -27,6 +27,7 @@ import com.appswithlove.ui.setup.SetupForm
 import com.appswithlove.ui.theme.FloaterTheme
 import com.appswithlove.ui.theme.LightGray
 import com.appswithlove.version
+import com.google.accompanist.flowlayout.FlowRow
 import com.vanpra.composematerialdialogs.DesktopWindowPosition
 import com.vanpra.composematerialdialogs.MaterialDialog
 import com.vanpra.composematerialdialogs.MaterialDialogProperties
@@ -101,7 +102,7 @@ private fun MainContent(
                     YourWeek(state)
                 }
             }
-            OutlinedButton(onClick = { clear() }, modifier = Modifier.align(Alignment.BottomEnd)) {
+            OutlinedButton(onClick = { clear() }, modifier = Modifier.align(Alignment.BottomCenter)) {
                 Text("Reset T2F", style = MaterialTheme.typography.caption)
             }
 
@@ -248,11 +249,16 @@ private fun AddTime(addTimeEntries: (LocalDate?) -> Unit, missingEntryDates: Lis
                 }
             }
 
-            missingEntryDates.forEach {
-                Button(onClick = { addTimeEntries(it) }) {
-                    Text(it.format(DateTimeFormatter.ofPattern("EEE,dd.MM")))
-                }
+            if (missingEntryDates.isNotEmpty()) {
+                Text("Dates with entries in Toggl but not yet in Float. Click to add:")
+                FlowRow(modifier = Modifier.fillMaxWidth(), mainAxisSpacing = 16.dp) {
+                    missingEntryDates.forEach {
+                        OutlinedButton(onClick = { addTimeEntries(it) }) {
+                            Text(it.format(DateTimeFormatter.ofPattern("EEE, dd.MM")))
+                        }
 
+                    }
+                }
             }
 
             AnimatedVisibility(from != null) {

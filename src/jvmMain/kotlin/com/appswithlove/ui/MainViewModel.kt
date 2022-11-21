@@ -58,7 +58,7 @@ class MainViewModel {
             val entries = float.getDatesWithoutTimeEntries(start = start, end =end)
             val togglEntries = toggl.getDatesWithTimeEntries(start, end)
             val missingEntries = entries.filter { togglEntries.contains(it) }
-            _state.update { it.copy(missingEntryDates = missingEntries) }
+            _state.update { it.copy(missingEntryDates = missingEntries.sorted()) }
         }
     }
 
