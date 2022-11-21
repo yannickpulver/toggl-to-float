@@ -4,7 +4,9 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.desktop.ui.tooling.preview.Preview
-import androidx.compose.foundation.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -16,7 +18,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.capitalize
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import com.appswithlove.floaat.FloatPeopleItem
@@ -31,7 +32,6 @@ import com.vanpra.composematerialdialogs.MaterialDialog
 import com.vanpra.composematerialdialogs.MaterialDialogProperties
 import com.vanpra.composematerialdialogs.datetime.date.datepicker
 import com.vanpra.composematerialdialogs.rememberMaterialDialogState
-import java.text.SimpleDateFormat
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
@@ -78,18 +78,20 @@ private fun MainContent(
                     modifier = Modifier.weight(1f).padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    if (state.isValid) {
-                        Welcome(syncProjects)
-                        Divider()
-                        AddTime(addTimeEntries = addTimeEntries)
-                        Divider()
-                        Logs(state.logs)
-                    }
-
-                    if (state.loading) {
-                        Loading()
-                    } else {
-                        SetupForm(state, save)
+                    when {
+                        state.isValid -> {
+                            Welcome(syncProjects)
+                            Divider()
+                            AddTime(addTimeEntries = addTimeEntries, state.missingEntryDates)
+                            Divider()
+                            Logs(state.logs)
+                        }
+                        state.loading -> {
+                            Loading()
+                        }
+                        else -> {
+                            SetupForm(state, save)
+                        }
                     }
                     Divider()
 
@@ -181,7 +183,10 @@ private fun YourWeek(state: MainState) {
 
 @Composable
 private fun Welcome(syncProjects: () -> Unit) {
-    Text("Happy ${LocalDate.now().dayOfWeek.toString().lowercase().capitalize()}! 🎉", style = MaterialTheme.typography.h4)
+    Text(
+        "Happy ${LocalDate.now().dayOfWeek.toString().lowercase().capitalize()}! 🎉",
+        style = MaterialTheme.typography.h4
+    )
     Text(
         "If you need to add all of your Float projects to Toggl - Use the button below. You can also run it again to get the latest projects updated.",
         modifier = Modifier.fillMaxWidth(0.8f)
@@ -214,7 +219,7 @@ private fun Loading() {
 }
 
 @Composable
-private fun AddTime(addTimeEntries: (LocalDate?) -> Unit) {
+private fun AddTime(addTimeEntries: (LocalDate?) -> Unit, missingEntryDates: List<LocalDate>) {
     var from by remember { mutableStateOf<LocalDate?>(null) }
     Box {
         val dialogState = rememberMaterialDialogState()
@@ -238,15 +243,21 @@ private fun AddTime(addTimeEntries: (LocalDate?) -> Unit) {
             Text("Add time Toggl 👉 Float", style = MaterialTheme.typography.h4)
 
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-
                 OutlinedButton(onClick = { dialogState.show() }) {
                     Text(from?.format(DateTimeFormatter.ofPattern("dd.MM.yyyy")) ?: "Select date...")
                 }
+            }
 
-                AnimatedVisibility(from != null) {
-                    Button(onClick = { addTimeEntries(from) }) {
-                        Text("Add time entries 🚀")
-                    }
+            missingEntryDates.forEach {
+                Button(onClick = { addTimeEntries(it) }) {
+                    Text(it.format(DateTimeFormatter.ofPattern("EEE,dd.MM")))
+                }
+
+            }
+
+            AnimatedVisibility(from != null) {
+                Button(onClick = { addTimeEntries(from) }) {
+                    Text("Add time entries 🚀")
                 }
             }
         }

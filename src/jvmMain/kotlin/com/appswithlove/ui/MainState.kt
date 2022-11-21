@@ -11,7 +11,8 @@ data class MainState(
     val logs: List<Pair<String, LogLevel>> = emptyList(),
     val loading: Boolean = false,
     val lastEntryDate: LocalDate? = null,
-    val weeklyOverview: Map<FloatProject?, List<FloatOverview>> = emptyMap()
+    val weeklyOverview: Map<FloatProject?, List<FloatOverview>> = emptyMap(),
+    val missingEntryDates: List<LocalDate> = emptyList()
 ) {
     val isValid get() = !togglApiKey.isNullOrEmpty() && !floatApiKey.isNullOrEmpty() && peopleId != null && peopleId != -1
 }

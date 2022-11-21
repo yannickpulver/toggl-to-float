@@ -42,11 +42,23 @@ class MainViewModel {
             _state.collectLatest {
                 if (it.isValid && !initDone) {
                     initDone = true
-                    //loadSwicaWeek()
+                    loadSwicaWeek()
                     getLastEntry()
+                    getMissingEntries()
                     getWeeklyOverview()
                 }
             }
+        }
+    }
+
+    private fun getMissingEntries() {
+        CoroutineScope(Dispatchers.IO).launch {
+            val start = LocalDate.now().minusWeeks(2)
+            val end = LocalDate.now()
+            val entries = float.getDatesWithoutTimeEntries(start = start, end =end)
+            val togglEntries = toggl.getDatesWithTimeEntries(start, end)
+            val missingEntries = entries.filter { togglEntries.contains(it) }
+            _state.update { it.copy(missingEntryDates = missingEntries) }
         }
     }
 
@@ -132,6 +144,9 @@ class MainViewModel {
 
             CoroutineScope(Dispatchers.IO).launch {
                 addTimeEntries(from, from)
+                if (state.value.missingEntryDates.contains(from)) {
+                    _state.update { it.copy(missingEntryDates = it.missingEntryDates.filter { it != from }) }
+                }
             }
         } catch (exception: java.lang.Exception) {
             Logger.err("Double check your dates to have format YYYY-MM-DD")
@@ -249,11 +264,11 @@ class MainViewModel {
             return
         }
 
-        val data = pairs.map {
+        val data = pairs.map { (timeEntry, project) ->
             TimeEntryForPublishing(
-                timeEntry = it.first,
-                projectId = it.second?.projectId ?: -1,
-                phaseId = it.second?.phaseId
+                timeEntry = timeEntry,
+                projectId = project?.projectId ?: -1,
+                phaseId = project?.phaseId
             )
         }
 

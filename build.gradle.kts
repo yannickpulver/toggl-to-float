@@ -41,7 +41,7 @@ kotlin {
 compose.desktop {
     application {
         mainClass = "com.appswithlove.MainKt"
-        javaHome = "~/Library/Java/JavaVirtualMachines/corretto-15.0.2"
+        javaHome = System.getenv("JDK_15")
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Exe)
             packageName = "Toggl2Float"

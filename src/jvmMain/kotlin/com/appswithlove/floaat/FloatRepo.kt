@@ -13,10 +13,12 @@ import io.ktor.http.*
 import io.ktor.util.*
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
+import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.temporal.WeekFields
 import java.util.*
 import kotlin.math.roundToInt
+import kotlin.streams.toList
 
 class FloatRepo constructor(private val dataStore: DataStore) {
     suspend fun pushToFloat(from: LocalDate, to: LocalDate, pairs: List<TimeEntryForPublishing>) {
@@ -83,10 +85,15 @@ class FloatRepo constructor(private val dataStore: DataStore) {
 
     suspend fun getWeeklyOverview(): Map<FloatProject?, List<FloatOverview>> {
         val monday = LocalDate.now().with(WeekFields.of(Locale.FRANCE).firstDayOfWeek)
-        val sunday = monday.plusWeeks(1).minusDays(1)
-        val tasks = getFloatTasks(monday, sunday)
+        val saturday = monday.plusWeeks(1).minusDays(2)
+        val tasks = getFloatTasks(monday, saturday)
 
         return tasks
+            .filter {
+                monday <= LocalDate.parse(it.end_date) || (it.repeat_end_date != null && monday <= LocalDate.parse(
+                    it.repeat_end_date
+                ))
+            }
             .map {
                 val project = getProject(it.project_id)
                 val phase = if (it.phase_id != 0) {
@@ -221,6 +228,18 @@ class FloatRepo constructor(private val dataStore: DataStore) {
         }.flatten()
         return projects
     }
+
+
+    suspend fun getDatesWithoutTimeEntries(start: LocalDate, end: LocalDate): List<LocalDate> {
+        val entries = getFloatTimeEntries(start, end)
+        val datesWithEntries = entries.groupBy { it.date }.map { LocalDate.parse(it.key) }
+
+        return start.datesUntil(end).toList()
+            //.filterNot { it.dayOfWeek in listOf(DayOfWeek.SATURDAY, DayOfWeek.SUNDAY) } // only weekdays for now
+            .filterNot { datesWithEntries.contains(it) }
+
+    }
+
 
     private fun FloatProject.asString(item: FloatPhaseItem? = null): String {
         return buildString {

@@ -39,6 +39,7 @@ fun SetupForm(
         client.value = state.people.find { it.people_id == state.peopleId }
     }
 
+
     Text("Happy ${LocalDate.now().dayOfWeek.toString().lowercase().capitalize()}! 🎉", style = MaterialTheme.typography.h4)
 
     when {
