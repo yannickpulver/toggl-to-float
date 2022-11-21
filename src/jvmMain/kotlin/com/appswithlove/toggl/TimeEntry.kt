@@ -22,7 +22,11 @@ data class TimeEntry(
 
 data class TimeEntryForPublishing(
     val timeEntry: TimeEntry,
-    val projectId: Int,
-    val phaseId: Int? = null,
+    val id: Int // project or phase id
+)
+
+@Serializable
+data class TimeEntryUpdate(
+    val project_id: Int,
 )
 

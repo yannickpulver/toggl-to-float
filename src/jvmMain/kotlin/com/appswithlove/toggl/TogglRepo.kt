@@ -1,6 +1,7 @@
 package com.appswithlove.toggl
 
 import TimeEntry
+import TimeEntryUpdate
 import androidx.compose.ui.graphics.Color
 import com.appswithlove.json
 import com.appswithlove.store.DataStore
@@ -13,7 +14,6 @@ import io.ktor.client.statement.*
 import io.ktor.http.*
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
-import org.slf4j.event.LoggingEvent
 import java.time.LocalDate
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
@@ -43,6 +43,13 @@ class TogglRepo constructor(private val dataStore: DataStore) {
         return json.decodeFromString(response.body())
     }
 
+
+    suspend fun getTogglProject(workspaceId: Int, id: Int): Project? {
+        val apiKey = getTogglApiKey()
+        val projectsApi = "https://api.track.toggl.com/api/v9/workspaces/${workspaceId}/projects/$id"
+        val response = getRequest(apiKey, projectsApi)
+        return json.decodeFromString(response.body())
+    }
 
     suspend fun getWorkspaces(): TogglWorkspaceItem? {
         var response: HttpResponse? = null
@@ -76,13 +83,71 @@ class TogglRepo constructor(private val dataStore: DataStore) {
             var projectResponse: HttpResponse? = null
             while (projectResponse?.status != HttpStatusCode.OK) {
                 projectResponse = postRequest(api, json.encodeToString(it), togglApiKey)
-                if (projectResponse.status != HttpStatusCode.OK) {
-                    Logger.log("Error happened")
+                if (projectResponse.status != HttpStatusCode.OK && projectResponse.status != HttpStatusCode.TooManyRequests) {
+                    Logger.log("Error happened - ${it.name} - ${projectResponse.bodyAsText()}")
                 }
             }
             Logger.log("Progress:️ ${index + 1}/${newProjects.size}")
         }
         Logger.log("🎉 Your Float projects are now available in Toggl!")
+    }
+
+    suspend fun putProjectsToToggl(
+        workspaceId: Int,
+        updatedProjects: List<TogglProjectCreate>
+    ) {
+        val togglApiKey = getTogglApiKey()
+        updatedProjects.forEachIndexed { index, it ->
+            val api = "https://api.track.toggl.com/api/v9/workspaces/${workspaceId}/projects/${it.id}"
+            var projectResponse: HttpResponse? = null
+            while (projectResponse?.status != HttpStatusCode.OK) {
+                projectResponse = putRequest(api, json.encodeToString(TogglProjectUpdateName(it.name)), togglApiKey)
+                if (projectResponse.status != HttpStatusCode.OK && projectResponse.status != HttpStatusCode.TooManyRequests) {
+                    Logger.log("Error happened - ${projectResponse.bodyAsText()}")
+                }
+            }
+            Logger.log("Progress:️ ${index + 1}/${updatedProjects.size}")
+        }
+        Logger.log("🎉 Your Float projects are now available in Toggl!")
+    }
+
+    suspend fun deleteProjects(
+        workspaceId: Int,
+        ids: List<Int>
+    ) {
+        val togglApiKey = getTogglApiKey()
+        ids.forEachIndexed { index, it ->
+            val api = "https://api.track.toggl.com/api/v9/workspaces/${workspaceId}/projects/${it}"
+            var projectResponse: HttpResponse? = null
+            while (projectResponse?.status != HttpStatusCode.OK) {
+                projectResponse = deleteRequest(togglApiKey, api)
+                if (projectResponse.status != HttpStatusCode.OK && projectResponse.status != HttpStatusCode.TooManyRequests) {
+                    Logger.log("Error happened - ${projectResponse.bodyAsText()}")
+                }
+            }
+            Logger.log("Progress:️ ${index + 1}/${ids.size}")
+        }
+        Logger.log("🎉 Fully cleaned the projects!")
+    }
+
+
+    suspend fun putTimeEntries(
+        workspaceId: Int,
+        updatesTimeEntries: List<Pair<Long, TimeEntryUpdate>>
+    ) {
+        val togglApiKey = getTogglApiKey()
+        updatesTimeEntries.forEachIndexed { index, (id, updateJson) ->
+            val api = "https://api.track.toggl.com/api/v9/workspaces/${workspaceId}/time_entries/${id}"
+            var projectResponse: HttpResponse? = null
+            while (projectResponse?.status != HttpStatusCode.OK) {
+                projectResponse = putRequest(api, json.encodeToString(updateJson), togglApiKey)
+                if (projectResponse.status != HttpStatusCode.OK && projectResponse.status != HttpStatusCode.TooManyRequests) {
+                    Logger.log("Error happened- ${projectResponse.bodyAsText()}")
+                }
+            }
+            Logger.log("Progress:️ ${index + 1}/${updatesTimeEntries.size}")
+        }
+        Logger.log("🎉 Your Time entries are now changed in Toggl!")
     }
 
     suspend fun updateProjectColors(
@@ -94,7 +159,11 @@ class TogglRepo constructor(private val dataStore: DataStore) {
         newProjects.forEachIndexed { index, it ->
             var projectResponse: HttpResponse? = null
             while (projectResponse?.status != HttpStatusCode.OK) {
-                projectResponse = putRequest(api + "/${it.project_id}", json.encodeToString(TogglProjectUpdate(it.color)), togglApiKey)
+                projectResponse = putRequest(
+                    api + "/${it.project_id}",
+                    json.encodeToString(TogglProjectUpdate(it.color)),
+                    togglApiKey
+                )
                 if (projectResponse.status != HttpStatusCode.OK) {
                     Logger.log("Error happened - retrying")
                 }
@@ -102,6 +171,20 @@ class TogglRepo constructor(private val dataStore: DataStore) {
             Logger.log("Progress:️ ${index + 1}/${newProjects.size}")
         }
         Logger.log("🎉 Your Float colors are now synced to Toggl!")
+    }
+
+
+    private suspend fun deleteRequest(
+        togglApiKey: String,
+        url: String
+    ): HttpResponse {
+        val client = HttpClient(CIO)
+        val authToken = Base64.getEncoder().encodeToString("$togglApiKey:api_token".toByteArray())
+
+        val response: HttpResponse = client.delete(url) {
+            header(HttpHeaders.Authorization, "Basic $authToken")
+        }
+        return response
     }
 
 

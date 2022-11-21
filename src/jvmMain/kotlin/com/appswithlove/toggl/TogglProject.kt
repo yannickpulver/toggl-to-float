@@ -25,6 +25,12 @@ data class TogglProjectCreate(
     val is_private: Boolean = false,
     val name: String,
     val color: String? = null,
+    val id: Int
+)
+
+@Serializable
+data class TogglProjectUpdateName(
+    val name: String,
 )
 
 @Serializable
