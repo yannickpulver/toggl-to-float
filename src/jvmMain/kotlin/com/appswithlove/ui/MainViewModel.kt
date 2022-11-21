@@ -11,34 +11,111 @@ import com.appswithlove.toggl.TogglProjectCreate
 import com.appswithlove.toggl.TogglRepo
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.time.LocalDate
+import java.time.temporal.WeekFields
+import java.util.*
+import kotlin.time.DurationUnit
+import kotlin.time.toDuration
 
 class MainViewModel {
 
     private val dataStore = DataStore()
     private val float = FloatRepo(dataStore)
     private val toggl = TogglRepo(dataStore)
+    private var initDone: Boolean = false
 
     private val _state = MutableStateFlow(MainState(loading = true))
     val state: StateFlow<MainState> = combine(_state, Logger.logs) { state, logs ->
         state.copy(logs = logs)
     }.stateIn(
-        scope = GlobalScope,
+        scope = CoroutineScope(Dispatchers.Default),
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = MainState(),
     )
 
     init {
         refresh()
+
+        CoroutineScope(Dispatchers.IO).launch {
+            _state.collectLatest {
+                if (it.isValid && !initDone) {
+                    initDone = true
+                    loadSwicaWeek()
+                    getLastEntry()
+                    getMissingEntries()
+                    getWeeklyOverview()
+                }
+            }
+        }
+    }
+
+    private fun getMissingEntries() {
+        CoroutineScope(Dispatchers.IO).launch {
+            val start = LocalDate.now().minusWeeks(2)
+            val end = LocalDate.now()
+            val entries = float.getDatesWithoutTimeEntries(start = start, end =end)
+            val togglEntries = toggl.getDatesWithTimeEntries(start, end)
+            val missingEntries = entries.filter { togglEntries.contains(it) }
+            _state.update { it.copy(missingEntryDates = missingEntries.sorted()) }
+        }
+    }
+
+    private fun getWeeklyOverview() {
+        CoroutineScope(Dispatchers.IO).launch {
+            val overview = float.getWeeklyOverview()
+            _state.update { it.copy(weeklyOverview = overview) }
+        }
+    }
+
+    private fun getLastEntry() {
+        CoroutineScope(Dispatchers.IO).launch {
+            val entries = float.getFloatTimeEntries(from = LocalDate.now().minusWeeks(2), to = LocalDate.now())
+            val max = entries.maxByOrNull { it.date }
+            val parsedDate = max?.date?.let { LocalDate.parse(it) }
+            _state.update { it.copy(lastEntryDate = parsedDate) }
+        }
+    }
+
+    private fun loadSwicaWeek() {
+        CoroutineScope(Dispatchers.IO).launch {
+            val lastMonday = LocalDate.now().with(WeekFields.of(Locale.FRANCE).firstDayOfWeek).minusWeeks(1)
+            val lastSunday = lastMonday.plusWeeks(1).minusDays(1)
+            val timeEntries = float.getFloatTimeEntries(lastMonday, lastSunday)
+            val swicaEntries = timeEntries.filter { it.project_id == 7728055 }
+            swicaEntries.sortedBy { it.date }.groupBy { it.date }.forEach { (date, entries) ->
+                println(date)
+
+                val newEntries = entries.groupBy { it.notes to it.project_id }.map { (pair, entries) ->
+                    entries.first().copy(hours = entries.sumOf { it.hours })
+                }
+
+                newEntries.forEach {
+                    val duration = it.hours.toDuration(DurationUnit.HOURS)
+                    val phase = if (it.phase_id == 305879) " (SLA)" else ""
+                    println(
+                        "${
+                            duration.toComponents { hours, minutes, _, _ ->
+                                "${hours}:${
+                                    String.format(
+                                        "%02d",
+                                        minutes
+                                    )
+                                }"
+                            }
+                        } — ${it.notes} $phase"
+                    )
+                }
+            }
+        }
     }
 
     fun clear() {
         Logger.clear()
         dataStore.clear()
         refresh()
+        _state.update { it.copy(togglApiKey = null, floatApiKey = null, peopleId = null) }
     }
 
     fun fetchProjects() {
@@ -59,14 +136,17 @@ class MainViewModel {
         }
     }
 
-    fun addTimeEntries(from: String, to: String) {
+    fun addTimeEntries(from: LocalDate?) {
+        from ?: return // todo add snackbar
 
         try {
-            val fromDate = LocalDate.parse(from)
-            val toDate = LocalDate.parse(to)
+            //val toDate = LocalDate.parse(to)
 
             CoroutineScope(Dispatchers.IO).launch {
-                addTimeEntries(fromDate, toDate)
+                addTimeEntries(from, from)
+                if (state.value.missingEntryDates.contains(from)) {
+                    _state.update { it.copy(missingEntryDates = it.missingEntryDates.filter { it != from }) }
+                }
             }
         } catch (exception: java.lang.Exception) {
             Logger.err("Double check your dates to have format YYYY-MM-DD")
@@ -102,8 +182,6 @@ class MainViewModel {
 
         val floatProjects = float.getFloatProjects()
         val togglProjects = toggl.getTogglProjects()
-
-        Logger.log(togglProjects.toString())
         val newProjects =
             floatProjects.filter { floatProject -> !togglProjects.any { it.name.contains(floatProject.first) } }
                 .map {
@@ -135,7 +213,8 @@ class MainViewModel {
                     TogglProject(
                         name = floatProject.first,
                         color = colorString,
-                        project_id = togglProjects.firstOrNull { it.name.contains(floatProject.first) }?.id ?: -1)
+                        project_id = togglProjects.firstOrNull { it.name.contains(floatProject.first) }?.id ?: -1
+                    )
                 }
 
         if (existingProjects.isNotEmpty()) {
@@ -185,11 +264,11 @@ class MainViewModel {
             return
         }
 
-        val data = pairs.map {
+        val data = pairs.map { (timeEntry, project) ->
             TimeEntryForPublishing(
-                timeEntry = it.first,
-                projectId = it.second?.projectId ?: -1,
-                phaseId = it.second?.phaseId
+                timeEntry = timeEntry,
+                projectId = project?.projectId ?: -1,
+                phaseId = project?.phaseId
             )
         }
 

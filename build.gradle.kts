@@ -1,4 +1,3 @@
-import org.jetbrains.compose.compose
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 
 plugins {
@@ -8,7 +7,7 @@ plugins {
 }
 
 group = "com.appswithlove"
-version = "1.0-SNAPSHOT"
+version = "1.0.2"
 
 repositories {
     google()
@@ -27,9 +26,12 @@ kotlin {
         val jvmMain by getting {
             dependencies {
                 implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.3.3")
+                implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.4.0")
                 implementation(compose.desktop.currentOs)
                 implementation("io.ktor:ktor-client-core:2.1.0")
                 implementation("io.ktor:ktor-client-cio:2.1.0")
+                implementation("ca.gosyer:compose-material-dialogs-datetime:0.8.0")
+                implementation("ca.gosyer:accompanist-flowlayout:0.25.2")
             }
         }
         val jvmTest by getting
@@ -47,6 +49,7 @@ compose.desktop {
             packageVersion = "1.0.1"
             macOS {
                 iconFile.set(project.file("icon.icns"))
+                bundleID = "com.appswithlove.toggl2float"
             }
             windows {
                 iconFile.set(project.file("icon.ico"))

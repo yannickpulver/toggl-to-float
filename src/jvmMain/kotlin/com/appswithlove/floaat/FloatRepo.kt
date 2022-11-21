@@ -1,7 +1,6 @@
 package com.appswithlove.floaat
 
 import TimeEntryForPublishing
-import androidx.compose.ui.graphics.Color
 import com.appswithlove.json
 import com.appswithlove.store.DataStore
 import com.appswithlove.ui.Logger
@@ -15,8 +14,10 @@ import io.ktor.util.*
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import java.time.LocalDate
-import kotlin.math.abs
+import java.time.temporal.WeekFields
+import java.util.*
 import kotlin.math.roundToInt
+import kotlin.streams.toList
 
 class FloatRepo constructor(private val dataStore: DataStore) {
     suspend fun pushToFloat(from: LocalDate, to: LocalDate, pairs: List<TimeEntryForPublishing>) {
@@ -71,14 +72,8 @@ class FloatRepo constructor(private val dataStore: DataStore) {
         return "https://api.float.com/v3"
     }
 
-    private fun getFloatApiKey(): String {
-        var key: String? = dataStore.getStore.floatKey
-        while (key.isNullOrEmpty()) {
-            Logger.log("🔑 Setup Float API Key: Please get the API key from an account owner (e.g. Andrea Zeller) + click Enter:")
-            key = readLine()
-            dataStore.setFloatApiKey(key)
-        }
-        return key
+    private fun getFloatApiKey(): String? {
+        return dataStore.getStore.floatKey
     }
 
     suspend fun getFloatPeople(): List<FloatPeopleItem> {
@@ -87,13 +82,68 @@ class FloatRepo constructor(private val dataStore: DataStore) {
         return getAllPages<FloatPeopleItem>(endpoint).sortedBy { it.name }
     }
 
+    suspend fun getWeeklyOverview(): Map<FloatProject?, List<FloatOverview>> {
+        val monday = LocalDate.now().with(WeekFields.of(Locale.FRANCE).firstDayOfWeek)
+        val saturday = monday.plusWeeks(1).minusDays(2)
+        val tasks = getFloatTasks(monday, saturday)
 
-    private suspend inline fun <reified T> getAllPages(baseUrl: String): List<T> {
+        return tasks
+            .filter {
+                monday <= LocalDate.parse(it.end_date) || (it.repeat_end_date != null && monday <= LocalDate.parse(
+                    it.repeat_end_date
+                ))
+            }
+            .map {
+                val project = getProject(it.project_id)
+                val phase = if (it.phase_id != 0) {
+                    getPhase(it.phase_id)
+                } else null
+                FloatOverview(it, project, phase)
+            }
+            .sortedByDescending { it.weekHours }
+            .groupBy { it.project }
+
+    }
+
+
+    private suspend fun getFloatTasks(start: LocalDate, end: LocalDate): List<FloatTask> {
+        val floatUrl = getFloatUrl()
+        val userId = getFloatClientId()
+        val endpoint = "$floatUrl/tasks?people_id=$userId&start_date=$start&end_date=$end"
+        val response = getRequest(url = endpoint)
+        return json.decodeFromString(response.body())
+    }
+
+    private suspend fun getProject(id: Int): FloatProject? {
+        val floatUrl = getFloatUrl()
+        val endpoint = "$floatUrl/projects/$id"
+        val response = getRequest(url = endpoint)
+        return json.decodeFromString(response.body())
+
+    }
+
+    private suspend fun getTask(id: Int): FloatTask? {
+        val floatUrl = getFloatUrl()
+        val endpoint = "$floatUrl/tasks/$id"
+        val response = getRequest(url = endpoint)
+        return json.decodeFromString(response.body())
+
+    }
+
+    private suspend fun getPhase(id: Int): FloatPhaseItem? {
+        val floatUrl = getFloatUrl()
+        val endpoint = "$floatUrl/phases/$id"
+        val response = getRequest(url = endpoint)
+        return json.decodeFromString(response.body())
+
+    }
+
+    private suspend inline fun <reified T> getAllPages(baseUrl: String, params: String? = null): List<T> {
         var page = 1
         val peopleList = mutableListOf<T>()
 
         while (true) { //fcking dangerous
-            val api = "$baseUrl?page=$page&per-page=200"
+            val api = "$baseUrl?page=$page&per-page=200${params?.let { "&$it" }}"
             val response = getRequest(url = api)
             val projects = json.decodeFromString<List<T>>(response.body())
             if (projects.isEmpty()) break
@@ -101,7 +151,7 @@ class FloatRepo constructor(private val dataStore: DataStore) {
             val totalItems =
                 response.headers.toMap().getOrDefault("X-Pagination-Total-Count", emptyList()).firstOrNull()
                     ?.toFloatOrNull() ?: 1f
-            Logger.log("Downloading - Progress: ${(peopleList.size.toFloat() / totalItems) * 100f}%")
+            //Logger.log("Downloading - Progress: ${(peopleList.size.toFloat() / totalItems) * 100f}%")
             page += 1
         }
 
@@ -111,10 +161,7 @@ class FloatRepo constructor(private val dataStore: DataStore) {
     suspend fun getFloatTimeEntries(from: LocalDate, to: LocalDate): List<FloatTimeEntriesItem> {
         val floatUrl = getFloatUrl()
         val userId = getFloatClientId()
-        val endpoint = "$floatUrl/logged-time?start_date=$from&end_date=$to&people_id=$userId"
-
-        val response = getRequest(url = endpoint)
-        return json.decodeFromString(response.body())
+        return getAllPages("$floatUrl/logged-time", "start_date=$from&end_date=$to&people_id=$userId")
     }
 
     suspend fun getFloatClientId(): Int {
@@ -153,8 +200,7 @@ class FloatRepo constructor(private val dataStore: DataStore) {
         val projectList = getAllPages<FloatProject>("$floatUrl/projects")
 
         val phases = getAllPages<FloatPhaseItem>("$floatUrl/phases")
-        val grouped =
-            projectList.associate { project -> project to phases.filter { it.project_id == project.project_id } }
+        val grouped = projectList.associateWith { project -> phases.filter { it.project_id == project.project_id } }
 
 
         val projects = grouped.map { project ->
@@ -167,6 +213,18 @@ class FloatRepo constructor(private val dataStore: DataStore) {
         }.flatten()
         return projects
     }
+
+
+    suspend fun getDatesWithoutTimeEntries(start: LocalDate, end: LocalDate): List<LocalDate> {
+        val entries = getFloatTimeEntries(start, end)
+        val datesWithEntries = entries.groupBy { it.date }.map { LocalDate.parse(it.key) }
+
+        return start.datesUntil(end).toList()
+            //.filterNot { it.dayOfWeek in listOf(DayOfWeek.SATURDAY, DayOfWeek.SUNDAY) } // only weekdays for now
+            .filterNot { datesWithEntries.contains(it) }
+
+    }
+
 
     private fun FloatProject.asString(item: FloatPhaseItem? = null): String {
         return buildString {
@@ -203,7 +261,6 @@ class FloatRepo constructor(private val dataStore: DataStore) {
         }
         return response
     }
-
 
 
 }

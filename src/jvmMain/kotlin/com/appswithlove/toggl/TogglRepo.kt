@@ -15,6 +15,7 @@ import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import org.slf4j.event.LoggingEvent
 import java.time.LocalDate
+import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.*
 import kotlin.math.abs
@@ -28,6 +29,11 @@ class TogglRepo constructor(private val dataStore: DataStore) {
         val timeEntriesApi = "https://api.track.toggl.com/api/v9/me/time_entries?start_date=$start&end_date=$end"
         val response = getRequest(apiKey, timeEntriesApi)
         return json.decodeFromString(response.body())
+    }
+
+    suspend fun getDatesWithTimeEntries(from: LocalDate, to: LocalDate): List<LocalDate> {
+        val entries = getTogglTimeEntries(from, to)
+        return entries.map { ZonedDateTime.parse(it.start).toLocalDate() }.distinct()
     }
 
     suspend fun getTogglProjects(): List<Project> {

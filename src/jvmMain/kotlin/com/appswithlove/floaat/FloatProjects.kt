@@ -23,3 +23,5 @@ data class FloatProject(
     val tags: List<String>? = null,
     val tentative: Int? = null
 )
+
+val FloatProject.rgbColor get() = color?.let(::hex2Rgb)?.copy(alpha = 1f)

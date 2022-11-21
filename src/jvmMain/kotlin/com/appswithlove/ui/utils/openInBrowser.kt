@@ -1,4 +1,4 @@
-package com.appswithlove.ui
+package com.appswithlove.ui.utils
 
 import java.awt.Desktop
 import java.net.URI
