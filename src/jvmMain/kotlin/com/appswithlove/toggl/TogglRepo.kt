@@ -92,6 +92,7 @@ class TogglRepo constructor(private val dataStore: DataStore) {
         Logger.log("🎉 Synced new Float projects to Toggl!")
     }
 
+
     suspend fun putProjectsToToggl(
         workspaceId: Int,
         updatedProjects: List<TogglProjectCreate>
@@ -128,6 +129,33 @@ class TogglRepo constructor(private val dataStore: DataStore) {
             Logger.log("Progress:️ ${index + 1}/${ids.size}")
         }
         Logger.log("🎉 Fully cleaned the projects!")
+    }
+
+
+    suspend fun getTogglTags(): List<TogglTag> {
+        val apiKey = getTogglApiKey()
+        val projectsApi = "https://api.track.toggl.com/api/v9/me/tags"
+        val response = getRequest(apiKey, projectsApi)
+        return json.decodeFromString(response.body())
+    }
+
+    suspend fun pushTagsToToggl(
+        workspaceId: Int,
+        newTags: List<String>
+    ) {
+        val togglApiKey = getTogglApiKey()
+        val api = "https://api.track.toggl.com/api/v9/workspaces/${workspaceId}/tags"
+        newTags.forEachIndexed { index, it ->
+            var projectResponse: HttpResponse? = null
+            while (projectResponse?.status != HttpStatusCode.OK) {
+                projectResponse = postRequest(api, json.encodeToString(TogglTagCreate(workspaceId, it)), togglApiKey)
+                if (projectResponse.status != HttpStatusCode.OK && projectResponse.status != HttpStatusCode.TooManyRequests) {
+                    Logger.log("Error happened - $it - ${projectResponse.bodyAsText()}")
+                }
+            }
+            Logger.log("Progress:️ ${index + 1}/${newTags.size}")
+        }
+        Logger.log("🎉 Synced new Float tags to Toggl!")
     }
 
 

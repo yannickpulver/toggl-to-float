@@ -34,12 +34,14 @@ import com.vanpra.composematerialdialogs.MaterialDialogProperties
 import com.vanpra.composematerialdialogs.datetime.date.datepicker
 import com.vanpra.composematerialdialogs.rememberMaterialDialogState
 import java.time.LocalDate
+import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 
 val viewModel = MainViewModel()
 
 @Composable
 fun MainContent() {
+
     val state = viewModel.state.collectAsState()
 
     MainContent(
@@ -191,7 +193,7 @@ private fun Welcome(syncProjects: () -> Unit, removeProjects: () -> Unit) {
         style = MaterialTheme.typography.h4
     )
     Text(
-        "If you need to add all of your Float projects to Toggl - Use the button below. You can also run it again to get the latest projects updated.",
+        "If you need to add all of your Float projects & tasks to Toggl - Use the button below. You can also run it again to get the latest projects updated.",
         modifier = Modifier.fillMaxWidth(0.8f)
     )
 
@@ -200,21 +202,10 @@ private fun Welcome(syncProjects: () -> Unit, removeProjects: () -> Unit) {
         modifier = Modifier.fillMaxWidth()
     ) {
 
-//                        OutlinedButton(onClick = { openInBrowser(URI("https://track.toggl.com/projects")) }) {
-//                            Text("🌍 Visit Toggl Projects")
-//                        }
-
         Button(onClick = syncProjects) {
-            Text("Sync Projects")
+            Text("Sync Projects & Tasks")
         }
 
-        Button(onClick = removeProjects) {
-            Text("⚠️ Remove old projects (sync first)")
-        }
-
-//                        Button(onClick = { syncColors() }) {
-//                            Text("🎨 Sync Colors")
-//                        }
     }
 }
 

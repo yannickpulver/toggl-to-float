@@ -9,6 +9,7 @@ import com.appswithlove.floaat.hex2Rgb
 import com.appswithlove.store.DataStore
 import com.appswithlove.toggl.TogglProjectCreate
 import com.appswithlove.toggl.TogglRepo
+import com.appswithlove.toggl.TogglTagCreate
 import com.appswithlove.toggl.TogglWorkspaceItem
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -188,6 +189,7 @@ class MainViewModel {
     private suspend fun fetchProjectsInt() {
         val workspace = toggl.getWorkspaces() ?: throw Exception("Couldn't get Toggle Workspace")
 
+        // projects
         val floatProjects = float.getFloatProjects().map { it.asNumberList }.flatten()
         val togglProjects = toggl.getTogglProjects()
 
@@ -211,31 +213,37 @@ class MainViewModel {
                     TogglProjectCreate(name = it.name, color = colorString, id = it.id)
                 }
 
-
-//        val newProjects =
-//            floatProjects.filter { floatProject -> !togglProjects.any { it.name.contains(floatProject.first) } }
-//                .map {
-//                    val colorString = floatColorToTogglColor(it.second)
-//                    TogglProjectCreate(name = it.first, color = colorString)
-//                }
-
         if (newProjects.isNotEmpty()) {
             Logger.log("⬆️ Syncing new Float projects to Toggl — (${newProjects.size}) of ${floatProjects.size}")
             Logger.log("---")
             toggl.pushProjectsToToggl(workspace.id, newProjects)
-        } else {
-            Logger.log("🎉 No new Projects found")
         }
         if (modifiedProjects.isNotEmpty()) {
             Logger.log("⬆️ Syncing modified Float projects to Toggl — (${newProjects.size}) of ${floatProjects.size}")
             toggl.putProjectsToToggl(workspace.id, modifiedProjects)
-        } else {
-            Logger.log("🎉 No modified Projects found")
-
         }
 
+        // tags
+        val togglTags = toggl.getTogglTags()
+        val floatTags = float.getFloatTaskNames()
+
+        val newTags = floatTags.filterNot { floatTag -> togglTags.any { it.name == floatTag } }
+        //val removedTags = togglTags.filter { togglTag -> floatTags.contains(togglTag.name) }
+        if (newTags.isNotEmpty()) {
+            Logger.log("⬆️ Syncing new Float tags to Toggl")
+            toggl.pushTagsToToggl(workspace.id, newTags)
+        }
+
+        // time entries
         migrateTimeEntries(workspace)
+
+
+        // clean old projects
+        removeOldProjects()
+
         Logger.log("🎉 Sync Complete.")
+
+
 
     }
 

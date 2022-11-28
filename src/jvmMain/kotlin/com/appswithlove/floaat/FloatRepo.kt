@@ -2,6 +2,7 @@ package com.appswithlove.floaat
 
 import TimeEntryForPublishing
 import com.appswithlove.json
+import com.appswithlove.jsonNoDefaults
 import com.appswithlove.store.DataStore
 import com.appswithlove.ui.Logger
 import io.ktor.client.*
@@ -29,6 +30,10 @@ class FloatRepo constructor(private val dataStore: DataStore) {
 
         val timeEntries = pairs.map {
             val phase = getPhase(it.id)
+            val projectId = phase?.project_id ?: it.id
+            val task = it.timeEntry.tags.orEmpty().map {tag ->
+                getFloatTask(projectId, tag, date)
+            }.firstOrNull()
 
             val description = it.timeEntry.description
 
@@ -38,12 +43,15 @@ class FloatRepo constructor(private val dataStore: DataStore) {
                 hours = it.timeEntry.duration / 60.0 / 60.0,
                 notes = description,
                 people_id = getFloatClientId(),
-                phase_id = phase?.phase_id
+                phase_id = phase?.phase_id,
+                task_id = task?.task_id,
+                task_meta_id = task?.task_meta_id,
+                task_name = task?.name
             )
         }
 
         timeEntries.forEachIndexed { index, it ->
-            val data = json.encodeToString(it)
+            val data = jsonNoDefaults.encodeToString(it)
             val request = postRequest(endpoint, data)
             if (request.status != HttpStatusCode.OK) {
                 Logger.log("An error occurred when uploading: ${it.notes}")
@@ -114,6 +122,28 @@ class FloatRepo constructor(private val dataStore: DataStore) {
         val endpoint = "$floatUrl/tasks?people_id=$userId&start_date=$start&end_date=$end"
         val response = getRequest(url = endpoint)
         return json.decodeFromString(response.body())
+    }
+
+    private suspend fun getFloatTasks(): List<FloatTask> {
+        val floatUrl = getFloatUrl()
+        val endpoint = "$floatUrl/tasks"
+        return getAllPages<FloatTask>(endpoint).sortedBy { it.name }
+    }
+
+    private suspend fun getFloatTask(projectId: Int, name: String, date: LocalDate): FloatTask? {
+        val floatUrl = getFloatUrl()
+        val userId = getFloatClientId()
+        val endpoint = "$floatUrl/tasks"
+        val tasks = getAllPages<FloatTask>(endpoint, "people_id=$userId&project_id=$projectId").sortedBy { it.name }
+
+           return tasks.filter {
+                date <= LocalDate.parse(it.end_date) || (it.repeat_end_date != null && date <= LocalDate.parse(it.repeat_end_date))
+            }.find { it.name == name }
+    }
+
+
+    suspend fun getFloatTaskNames(): List<String> {
+        return getFloatTasks().filter { it.name.isNotEmpty() }.map { it.name }.distinct()
     }
 
     private suspend fun getProject(id: Int): FloatProject? {
