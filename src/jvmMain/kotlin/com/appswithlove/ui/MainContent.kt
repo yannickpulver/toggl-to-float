@@ -7,6 +7,7 @@ import androidx.compose.desktop.ui.tooling.preview.Preview
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -15,9 +16,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.key.*
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import com.appswithlove.floaat.FloatPeopleItem
@@ -25,7 +31,6 @@ import com.appswithlove.floaat.rgbColor
 import com.appswithlove.floaat.totalHours
 import com.appswithlove.ui.setup.SetupForm
 import com.appswithlove.ui.theme.FloaterTheme
-import com.appswithlove.ui.theme.LightGray
 import com.appswithlove.version
 import com.google.accompanist.flowlayout.FlowRow
 import com.vanpra.composematerialdialogs.DesktopWindowPosition
@@ -34,16 +39,18 @@ import com.vanpra.composematerialdialogs.MaterialDialogProperties
 import com.vanpra.composematerialdialogs.datetime.date.datepicker
 import com.vanpra.composematerialdialogs.rememberMaterialDialogState
 import java.time.LocalDate
-import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 
 val viewModel = MainViewModel()
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun MainContent() {
 
     val state = viewModel.state.collectAsState()
 
+    val focusRequester = remember { FocusRequester() }
+    var hasFocus by remember { mutableStateOf(false) }
     MainContent(
         state = state.value,
         clear = viewModel::clear,
@@ -52,8 +59,29 @@ fun MainContent() {
         archiveProjects = viewModel::archiveProjects,
         addTimeEntries = viewModel::addTimeEntries,
         save = viewModel::save,
-        syncColors = viewModel::updateColors
+        syncColors = viewModel::updateColors,
+        modifier = Modifier
+            .focusRequester(focusRequester)
+            .onFocusChanged {
+                hasFocus = it.hasFocus
+            }
+            .focusable()
+            .onKeyEvent {
+                if (it.isAltPressed && it.key == Key.S) {
+                    viewModel.loadSwicaWeek()
+                    true
+                } else {
+                    false
+                }
+            }
     )
+
+    if (!hasFocus) {
+        LaunchedEffect(Unit) {
+            focusRequester.requestFocus()
+        }
+    }
+
 }
 
 @Composable
@@ -75,8 +103,9 @@ private fun MainContent(
     addTimeEntries: (LocalDate?) -> Unit,
     save: (String?, String?, FloatPeopleItem?) -> Unit,
     syncColors: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    Scaffold {
+    Scaffold(modifier = modifier) {
         Box {
             Row {
                 Column(
@@ -91,9 +120,11 @@ private fun MainContent(
                             Divider()
                             Logs(state.logs)
                         }
+
                         state.loading -> {
                             Loading()
                         }
+
                         else -> {
                             SetupForm(state, save)
                         }
@@ -118,7 +149,7 @@ private fun MainContent(
 @Composable
 private fun YourWeek(state: MainState) {
     Column(
-        Modifier.background(LightGray).width(300.dp).fillMaxHeight().padding(16.dp)
+        Modifier.background(MaterialTheme.colors.onSurface.copy(0.05f)).width(300.dp).fillMaxHeight().padding(16.dp)
     ) {
         Text("Your Week", style = MaterialTheme.typography.h4)
         if (state.weeklyOverview.isNotEmpty()) {
@@ -130,7 +161,7 @@ private fun YourWeek(state: MainState) {
                     Box(modifier = Modifier
                         .clip(MaterialTheme.shapes.medium)
                         .clickable { expanded.value = !expanded.value }
-                        .background(Color.White)
+                        .background(MaterialTheme.colors.surface)
                     ) {
                         Column(Modifier.padding(8.dp)) {
                             Row(
@@ -276,7 +307,7 @@ private fun Logs(list: List<Pair<String, LogLevel>>) {
         Text("Logs")
         LazyColumn(
             reverseLayout = true,
-            modifier = Modifier.heightIn(max = 200.dp).fillMaxWidth(0.8f)
+            modifier = Modifier.heightIn(max = 400.dp).fillMaxWidth(0.8f)
                 .border(1.dp, Color.Black, RoundedCornerShape(4.dp)).padding(8.dp)
         ) {
             itemsIndexed(logs) { index, item ->

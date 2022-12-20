@@ -45,7 +45,6 @@ class MainViewModel {
             _state.collectLatest {
                 if (it.isValid && !initDone) {
                     initDone = true
-                    //loadSwicaWeek()
                     getLastEntry()
                     getMissingEntries()
                     getWeeklyOverview()
@@ -81,14 +80,14 @@ class MainViewModel {
         }
     }
 
-    private fun loadSwicaWeek() {
+    fun loadSwicaWeek() {
         CoroutineScope(Dispatchers.IO).launch {
             val lastMonday = LocalDate.now().with(WeekFields.of(Locale.FRANCE).firstDayOfWeek).minusWeeks(1)
             val lastSunday = lastMonday.plusWeeks(1).minusDays(1)
             val timeEntries = float.getFloatTimeEntries(lastMonday, lastSunday)
             val swicaEntries = timeEntries.filter { it.project_id == 7728055 }
             swicaEntries.sortedBy { it.date }.groupBy { it.date }.forEach { (date, entries) ->
-                println(date)
+                Logger.log(date)
 
                 val newEntries = entries.groupBy { it.notes to it.project_id }.map { (pair, entries) ->
                     entries.first().copy(hours = entries.sumOf { it.hours })
@@ -97,7 +96,7 @@ class MainViewModel {
                 newEntries.forEach {
                     val duration = it.hours.toDuration(DurationUnit.HOURS)
                     val phase = if (it.phase_id == 305879) " (SLA)" else ""
-                    println(
+                    Logger.log(
                         "${
                             duration.toComponents { hours, minutes, _, _ ->
                                 "${hours}:${
@@ -228,7 +227,6 @@ class MainViewModel {
         val floatTags = float.getFloatTaskNames()
 
         val newTags = floatTags.filterNot { floatTag -> togglTags.any { it.name == floatTag } }
-        //val removedTags = togglTags.filter { togglTag -> floatTags.contains(togglTag.name) }
         if (newTags.isNotEmpty()) {
             Logger.log("⬆️ Syncing new Float tags to Toggl")
             toggl.pushTagsToToggl(workspace.id, newTags)

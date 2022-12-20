@@ -8,7 +8,7 @@ val Purple700 = Color(0xFF3700B3)
 val Teal200 = Color(0xFF03DAC5)
 
 val Black = Color(0xFF000000)
-val DarkGray = Color(0xFF6A7075)
+val DarkGray = Color(0xFF11161A)
 val LightGray = Color(0xFFf1f1f1)
 val Magenta = Color(0xFFDF007B)
 val Unread = Color(0xFFFFFBF4)
