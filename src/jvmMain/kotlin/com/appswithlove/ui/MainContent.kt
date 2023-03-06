@@ -66,14 +66,14 @@ fun MainContent() {
                 hasFocus = it.hasFocus
             }
             .focusable()
-            .onKeyEvent {
-                if (it.isAltPressed && it.key == Key.S) {
-                    viewModel.loadSwicaWeek()
-                    true
-                } else {
-                    false
-                }
-            }
+//            .onKeyEvent {
+//                if (it.isAltPressed && it.key == Key.S) {
+//                    viewModel.loadSwicaWeek()
+//                    true
+//                } else {
+//                    false
+//                }
+//            }
     )
 
     if (!hasFocus) {
@@ -275,7 +275,15 @@ private fun AddTime(addTimeEntries: (LocalDate?) -> Unit, missingEntryDates: Lis
                 OutlinedButton(onClick = { dialogState.show() }) {
                     Text(from?.format(DateTimeFormatter.ofPattern("dd.MM.yyyy")) ?: "Select date...")
                 }
+
+                AnimatedVisibility(from != null) {
+                    Button(onClick = { addTimeEntries(from) }) {
+                        Text("Add time entries 🚀")
+                    }
+                }
             }
+
+
 
             if (missingEntryDates.isNotEmpty()) {
                 Text("Dates with entries in Toggl but not yet in Float. Click to add:")
@@ -289,11 +297,7 @@ private fun AddTime(addTimeEntries: (LocalDate?) -> Unit, missingEntryDates: Lis
                 }
             }
 
-            AnimatedVisibility(from != null) {
-                Button(onClick = { addTimeEntries(from) }) {
-                    Text("Add time entries 🚀")
-                }
-            }
+
         }
     }
 

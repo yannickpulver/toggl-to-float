@@ -57,8 +57,8 @@ class MainViewModel {
         CoroutineScope(Dispatchers.IO).launch {
             val start = LocalDate.now().minusWeeks(2)
             val end = LocalDate.now()
-            val entries = float.getDatesWithoutTimeEntries(start = start, end = end)
-            val togglEntries = toggl.getDatesWithTimeEntries(start, end)
+            val entries = float.getDatesWithoutTimeEntries(start = start, end = end.plusDays(1))
+            val togglEntries = toggl.getDatesWithTimeEntries(start, end.plusDays(1))
             val missingEntries = entries.filter { togglEntries.contains(it) }
             _state.update { it.copy(missingEntryDates = missingEntries.sorted()) }
         }
@@ -95,7 +95,7 @@ class MainViewModel {
 
                 newEntries.forEach {
                     val duration = it.hours.toDuration(DurationUnit.HOURS)
-                    val phase = if (it.phase_id == 305879) " (SLA)" else ""
+                    val phase = if (it.phase_id == 343078) " (SLA)" else ""
                     Logger.log(
                         "${
                             duration.toComponents { hours, minutes, _, _ ->

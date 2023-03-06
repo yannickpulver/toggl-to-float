@@ -6,7 +6,7 @@ import kotlinx.serialization.Serializable
 data class FloatTask(
     val billable: Int,
     val created: String,
-    val created_by: String,
+    val created_by: Int? = null,
     val end_date: String,
     val hours: Double,
     val modified: String,
