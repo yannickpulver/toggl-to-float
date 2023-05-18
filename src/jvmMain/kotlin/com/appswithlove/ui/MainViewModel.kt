@@ -151,8 +151,8 @@ class MainViewModel {
             //val toDate = LocalDate.parse(to)
 
             CoroutineScope(Dispatchers.IO).launch {
-                addTimeEntries(from)
-                if (state.value.missingEntryDates.contains(from)) {
+                val success = addTimeEntries(from)
+                if (success && state.value.missingEntryDates.contains(from)) {
                     _state.update { it.copy(missingEntryDates = it.missingEntryDates.filter { it != from }) }
                 }
             }
@@ -316,12 +316,12 @@ class MainViewModel {
     }
 
 
-    private suspend fun addTimeEntries(date: LocalDate) {
+    private suspend fun addTimeEntries(date: LocalDate): Boolean {
         val timeEntries = toggl.getTogglTimeEntries(date, date)
         Logger.log("⏱ Found ${timeEntries.size} time entries for $date on Toggl!")
         if (timeEntries.isEmpty()) {
             Logger.log("Noting to do here. Do you even work?")
-            return
+            return true
         }
         val projects = toggl.getTogglProjects()
         val pairs = timeEntries.map { time -> time to projects.firstOrNull { it.id == time.project_id } }
@@ -330,7 +330,7 @@ class MainViewModel {
         if (timeEntriesOnDate.isNotEmpty()) {
             Logger.log("---")
             Logger.err("⚠️ There are already existing time entries for that date. Can't guarantee to not mess up. So please remove them first for $date")
-            return
+            return false
         }
 
         if (pairs.any { it.second?.projectIdNew == null }) {
@@ -338,7 +338,7 @@ class MainViewModel {
             pairs.filter { it.second?.projectIdNew == null }.forEach {
                 Logger.log("  - ${it.first.description}")
             }
-            return
+            return false
         }
 
         val data = pairs.map { (timeEntry, project) ->
@@ -349,6 +349,7 @@ class MainViewModel {
         }
 
         float.pushToFloat(date, data)
+        return true
     }
 
 

@@ -23,7 +23,7 @@ fun main() = application {
     }
 }
 
-val version = "1.0.4" // todo: replace with bundle version
+val version = "1.1.0" // todo: replace with bundle version
 
 val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
 val jsonNoDefaults = Json { ignoreUnknownKeys = true }

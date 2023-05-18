@@ -14,6 +14,9 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
@@ -23,7 +26,6 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.key.*
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import com.appswithlove.floaat.FloatPeopleItem
@@ -118,7 +120,7 @@ private fun MainContent(
                             Divider()
                             AddTime(addTimeEntries = addTimeEntries, state.missingEntryDates)
                             Divider()
-                            Logs(state.logs)
+                            Logs(state.logs, modifier = Modifier.weight(1f))
                         }
 
                         state.loading -> {
@@ -134,11 +136,8 @@ private fun MainContent(
                 }
                 Divider(modifier = Modifier.width(1.dp).fillMaxHeight())
                 AnimatedVisibility(state.isValid) {
-                    YourWeek(state)
+                    YourWeek(state, clear)
                 }
-            }
-            OutlinedButton(onClick = { clear() }, modifier = Modifier.align(Alignment.BottomCenter)) {
-                Text("Reset T2F", style = MaterialTheme.typography.caption)
             }
 
             Version(modifier = Modifier.align(Alignment.BottomStart))
@@ -147,61 +146,78 @@ private fun MainContent(
 }
 
 @Composable
-private fun YourWeek(state: MainState) {
-    Column(
-        Modifier.background(MaterialTheme.colors.onSurface.copy(0.05f)).width(300.dp).fillMaxHeight().padding(16.dp)
-    ) {
-        Text("Your Week", style = MaterialTheme.typography.h4)
-        if (state.weeklyOverview.isNotEmpty()) {
-            Text("Planned hours: ${state.weeklyOverview.totalHours}h", style = MaterialTheme.typography.caption)
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 16.dp)) {
-                //Text("Your Week: (Total hours: ${state.weeklyOverview.totalHours}) ")
-                state.weeklyOverview.forEach { (project, items) ->
-                    val expanded = remember { mutableStateOf(false) }
-                    Box(modifier = Modifier
-                        .clip(MaterialTheme.shapes.medium)
-                        .clickable { expanded.value = !expanded.value }
-                        .background(MaterialTheme.colors.surface)
-                    ) {
-                        Column(Modifier.padding(8.dp)) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                //modifier = Modifier.padding(8.dp)
+private fun YourWeek(state: MainState, clear: () -> Unit) {
+    val (toggle, onToggleChange) = remember { mutableStateOf(true) }
+
+    Column(Modifier.background(MaterialTheme.colors.onSurface.copy(0.05f)).fillMaxHeight().padding(8.dp)) {
+        if(!toggle) {
+            TextButton(onClick = { onToggleChange(!toggle) }, modifier = Modifier.size(40.dp)) {
+                Icon(Icons.Default.KeyboardArrowRight, null)
+            }
+        } else {
+            Column(Modifier.width(250.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    TextButton(onClick = { onToggleChange(!toggle) }, modifier = Modifier.size(40.dp).padding(bottom = 2.dp)) {
+                        Icon(Icons.Default.KeyboardArrowLeft, null)
+                    }
+                    Text("Your Week", style = MaterialTheme.typography.h4)
+                }
+                if (state.weeklyOverview.isNotEmpty()) {
+                    Text("Planned hours: ${state.weeklyOverview.totalHours}h", style = MaterialTheme.typography.caption)
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 16.dp)) {
+                        //Text("Your Week: (Total hours: ${state.weeklyOverview.totalHours}) ")
+                        state.weeklyOverview.forEach { (project, items) ->
+                            val expanded = remember { mutableStateOf(false) }
+                            Box(modifier = Modifier
+                                .clip(MaterialTheme.shapes.medium)
+                                .clickable { expanded.value = !expanded.value }
+                                .background(MaterialTheme.colors.surface)
                             ) {
-                                project?.rgbColor?.let {
-                                    Box(Modifier.clip(CircleShape).background(it).size(10.dp))
-                                }
+                                Column(Modifier.padding(8.dp)) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        //modifier = Modifier.padding(8.dp)
+                                    ) {
+                                        project?.rgbColor?.let {
+                                            Box(Modifier.clip(CircleShape).background(it).size(10.dp))
+                                        }
 
-                                project?.name?.let {
-                                    Text(it, modifier = Modifier.weight(1f))
-                                }
-                                Text("${items.totalHours}h")
-                            }
+                                        project?.name?.let {
+                                            Text(it, modifier = Modifier.weight(1f))
+                                        }
+                                        Text("${items.totalHours}h")
+                                    }
 
-                            AnimatedVisibility(expanded.value, enter = expandVertically(), exit = shrinkVertically()) {
-                                Column {
-                                    items.forEach {
-                                        Divider()
-                                        Row {
-                                            Column(modifier = Modifier.weight(1f)) {
-                                                it.phase?.name?.let {
-                                                    Text(
-                                                        it,
-                                                        style = MaterialTheme.typography.caption,
+                                    AnimatedVisibility(
+                                        expanded.value,
+                                        enter = expandVertically(),
+                                        exit = shrinkVertically()
+                                    ) {
+                                        Column {
+                                            items.forEach {
+                                                Divider()
+                                                Row {
+                                                    Column(modifier = Modifier.weight(1f)) {
+                                                        it.phase?.name?.let {
+                                                            Text(
+                                                                it,
+                                                                style = MaterialTheme.typography.caption,
 
+                                                                )
+                                                        }
+                                                        if (it.task.name.isNotEmpty()) {
+                                                            Text(it.task.name, style = MaterialTheme.typography.caption)
+                                                        }
+                                                    }
+
+                                                    if (items.size > 1) {
+                                                        Text(
+                                                            "${it.weekHours}h",
+                                                            style = MaterialTheme.typography.caption
                                                         )
+                                                    }
                                                 }
-                                                if (it.task.name.isNotEmpty()) {
-                                                    Text(it.task.name, style = MaterialTheme.typography.caption)
-                                                }
-                                            }
-
-                                            if (items.size > 1) {
-                                                Text(
-                                                    "${it.weekHours}h",
-                                                    style = MaterialTheme.typography.caption
-                                                )
                                             }
                                         }
                                     }
@@ -209,10 +225,14 @@ private fun YourWeek(state: MainState) {
                             }
                         }
                     }
+                } else {
+                    Loading()
+                }
+                Spacer(Modifier.weight(1f))
+                OutlinedButton(onClick = { clear() }, modifier = Modifier.align(Alignment.End)) {
+                    Text("Reset T2F", style = MaterialTheme.typography.caption)
                 }
             }
-        } else {
-            Loading()
         }
     }
 }
@@ -305,13 +325,13 @@ private fun AddTime(addTimeEntries: (LocalDate?) -> Unit, missingEntryDates: Lis
 }
 
 @Composable
-private fun Logs(list: List<Pair<String, LogLevel>>) {
+private fun Logs(list: List<Pair<String, LogLevel>>, modifier: Modifier) {
     val logs = remember(list) { list.reversed() }
-    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp), modifier = modifier) {
         Text("Logs")
         LazyColumn(
             reverseLayout = true,
-            modifier = Modifier.heightIn(max = 400.dp).fillMaxWidth(0.8f)
+            modifier = Modifier.fillMaxWidth()
                 .border(1.dp, Color.Black, RoundedCornerShape(4.dp)).padding(8.dp)
         ) {
             itemsIndexed(logs) { index, item ->
