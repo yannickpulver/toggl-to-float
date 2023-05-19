@@ -26,7 +26,7 @@ val Typography = Typography(
     ),
     caption = TextStyle(
         fontFamily = Avenir,
-        fontWeight = FontWeight.Normal,
+        fontWeight = FontWeight.Bold,
         fontSize = 12.sp,
     ),
     h4 = TextStyle(

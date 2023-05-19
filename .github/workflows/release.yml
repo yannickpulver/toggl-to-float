@@ -1,10 +1,9 @@
-name: Package Mac
+name: "Release"
 
 on:
   push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+    tags:
+      - "v*"
 
 jobs:
   build:
@@ -30,3 +29,10 @@ jobs:
         with:
           name: Toggl2Float-dmg
           path: build/compose/binaries/main-release/dmg/*.dmg
+
+      - uses: "marvinpinto/action-automatic-releases@latest"
+        with:
+          repo_token: "${{ secrets.GITHUB_TOKEN }}"
+          prerelease: false
+          files: |
+            build/compose/binaries/main-release/dmg/*.dmg

@@ -55,27 +55,19 @@ fun MainContent() {
     var hasFocus by remember { mutableStateOf(false) }
     MainContent(
         state = state.value,
-        clear = viewModel::clear,
+        reset = viewModel::reset,
         syncProjects = viewModel::fetchProjects,
         removeProjects = viewModel::removeProjects,
-        archiveProjects = viewModel::archiveProjects,
         addTimeEntries = viewModel::addTimeEntries,
         save = viewModel::save,
-        syncColors = viewModel::updateColors,
+        loadLastWeek = viewModel::loadTimeLastWeek,
         modifier = Modifier
             .focusRequester(focusRequester)
             .onFocusChanged {
                 hasFocus = it.hasFocus
             }
-            .focusable()
-//            .onKeyEvent {
-//                if (it.isAltPressed && it.key == Key.S) {
-//                    viewModel.loadSwicaWeek()
-//                    true
-//                } else {
-//                    false
-//                }
-//            }
+            .focusable(),
+        clearLogs = viewModel::clearLogs
     )
 
     if (!hasFocus) {
@@ -98,13 +90,13 @@ fun Version(modifier: Modifier = Modifier) {
 @Composable
 private fun MainContent(
     state: MainState,
-    clear: () -> Unit,
+    reset: () -> Unit,
     syncProjects: () -> Unit,
     removeProjects: () -> Unit,
-    archiveProjects: () -> Unit,
     addTimeEntries: (LocalDate?) -> Unit,
     save: (String?, String?, FloatPeopleItem?) -> Unit,
-    syncColors: () -> Unit,
+    loadLastWeek: (Int) -> Unit,
+    clearLogs: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Scaffold(modifier = modifier) {
@@ -118,9 +110,9 @@ private fun MainContent(
                         state.isValid -> {
                             Welcome(syncProjects, removeProjects)
                             Divider()
-                            AddTime(addTimeEntries = addTimeEntries, state.missingEntryDates)
+                            AddTime(addTimeEntries = addTimeEntries, missingEntryDates = state.missingEntryDates)
                             Divider()
-                            Logs(state.logs, modifier = Modifier.weight(1f))
+                            Logs(list = state.logs, clearLogs = clearLogs, modifier = Modifier.weight(1f))
                         }
 
                         state.loading -> {
@@ -136,7 +128,7 @@ private fun MainContent(
                 }
                 Divider(modifier = Modifier.width(1.dp).fillMaxHeight())
                 AnimatedVisibility(state.isValid) {
-                    YourWeek(state, clear)
+                    YourWeek(state, reset, loadLastWeek)
                 }
             }
 
@@ -146,19 +138,22 @@ private fun MainContent(
 }
 
 @Composable
-private fun YourWeek(state: MainState, clear: () -> Unit) {
+private fun YourWeek(state: MainState, clear: () -> Unit, loadLastWeek: (Int) -> Unit) {
     val (toggle, onToggleChange) = remember { mutableStateOf(true) }
 
     Column(Modifier.background(MaterialTheme.colors.onSurface.copy(0.05f)).fillMaxHeight().padding(8.dp)) {
-        if(!toggle) {
+        if (!toggle) {
             TextButton(onClick = { onToggleChange(!toggle) }, modifier = Modifier.size(40.dp)) {
-                Icon(Icons.Default.KeyboardArrowRight, null)
+                Icon(Icons.Default.KeyboardArrowLeft, null)
             }
         } else {
             Column(Modifier.width(250.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    TextButton(onClick = { onToggleChange(!toggle) }, modifier = Modifier.size(40.dp).padding(bottom = 2.dp)) {
-                        Icon(Icons.Default.KeyboardArrowLeft, null)
+                    TextButton(
+                        onClick = { onToggleChange(!toggle) },
+                        modifier = Modifier.size(40.dp).padding(bottom = 2.dp)
+                    ) {
+                        Icon(Icons.Default.KeyboardArrowRight, null)
                     }
                     Text("Your Week", style = MaterialTheme.typography.h4)
                 }
@@ -180,7 +175,9 @@ private fun YourWeek(state: MainState, clear: () -> Unit) {
                                         //modifier = Modifier.padding(8.dp)
                                     ) {
                                         project?.rgbColor?.let {
-                                            Box(Modifier.clip(CircleShape).background(it).size(10.dp))
+                                            Box(
+                                                Modifier.clip(CircleShape).background(it).size(10.dp)
+                                                    .clickable { loadLastWeek(project.project_id) })
                                         }
 
                                         project?.name?.let {
@@ -229,7 +226,11 @@ private fun YourWeek(state: MainState, clear: () -> Unit) {
                     Loading()
                 }
                 Spacer(Modifier.weight(1f))
-                OutlinedButton(onClick = { clear() }, modifier = Modifier.align(Alignment.End)) {
+                OutlinedButton(
+                    onClick = { clear() },
+                    modifier = Modifier.align(Alignment.End).height(32.dp),
+                    contentPadding = PaddingValues(8.dp)
+                ) {
                     Text("Reset T2F", style = MaterialTheme.typography.caption)
                 }
             }
@@ -239,25 +240,26 @@ private fun YourWeek(state: MainState, clear: () -> Unit) {
 
 @Composable
 private fun Welcome(syncProjects: () -> Unit, removeProjects: () -> Unit) {
-    Text(
-        "Happy ${LocalDate.now().dayOfWeek.toString().lowercase().capitalize()}! 🎉",
-        style = MaterialTheme.typography.h4
-    )
-    Text(
-        "If you need to add all of your Float projects & tasks to Toggl - Use the button below. You can also run it again to get the latest projects updated.",
-        modifier = Modifier.fillMaxWidth(0.8f)
-    )
-
     Row(
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
-        modifier = Modifier.fillMaxWidth()
+        horizontalArrangement = Arrangement.SpaceBetween,
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
     ) {
+        Text(
+            "Happy ${LocalDate.now().dayOfWeek.toString().lowercase().capitalize()}! 🎉",
+            style = MaterialTheme.typography.h4
+        )
 
-        Button(onClick = syncProjects) {
-            Text("Sync Projects & Tasks")
+        Button(onClick = syncProjects, contentPadding = PaddingValues(8.dp), modifier = Modifier.height(32.dp)) {
+            Text("Sync Projects", style = MaterialTheme.typography.caption)
         }
-
     }
+    Text(
+        "If you need to add all of your Float projects & tasks to Toggl - Use the button to the right. You can also run it again to get the latest projects updated.",
+        modifier = Modifier.fillMaxWidth()
+    )
+
+
 }
 
 @Composable
@@ -289,30 +291,52 @@ private fun AddTime(addTimeEntries: (LocalDate?) -> Unit, missingEntryDates: Lis
         }
 
         Column {
-            Text("Add time Toggl 👉 Float", style = MaterialTheme.typography.h4)
-
+            Text(
+                "Add time Toggl 👉 Float",
+                style = MaterialTheme.typography.h4,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                OutlinedButton(onClick = { dialogState.show() }) {
+                OutlinedButton(
+                    onClick = { dialogState.show() },
+                    contentPadding = PaddingValues(8.dp),
+                    modifier = Modifier.height(32.dp)
+                ) {
                     Text(from?.format(DateTimeFormatter.ofPattern("dd.MM.yyyy")) ?: "Select date...")
                 }
-
                 AnimatedVisibility(from != null) {
-                    Button(onClick = { addTimeEntries(from) }) {
-                        Text("Add time entries 🚀")
+
+                    Button(
+                        onClick = { addTimeEntries(from) },
+                        enabled = from != null,
+                        contentPadding = PaddingValues(8.dp),
+                        modifier = Modifier.height(32.dp)
+                    ) {
+                        Text("Add time entries")
                     }
                 }
             }
 
 
+            AnimatedVisibility(missingEntryDates.isNotEmpty()) {
+                Column {
 
-            if (missingEntryDates.isNotEmpty()) {
-                Text("Dates with entries in Toggl but not yet in Float. Click to add:")
-                FlowRow(modifier = Modifier.fillMaxWidth(), mainAxisSpacing = 16.dp) {
-                    missingEntryDates.forEach {
-                        OutlinedButton(onClick = { addTimeEntries(it) }) {
-                            Text(it.format(DateTimeFormatter.ofPattern("EEE, dd.MM")))
+                    Divider(Modifier.padding(top = 12.dp))
+                    Text(
+                        "Dates with entries in Toggl but not yet in Float. Click to quick-add:",
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
+                    FlowRow(modifier = Modifier.fillMaxWidth(), mainAxisSpacing = 16.dp) {
+                        missingEntryDates.forEach {
+                            OutlinedButton(
+                                onClick = { addTimeEntries(it) },
+                                contentPadding = PaddingValues(8.dp),
+                                modifier = Modifier.height(32.dp)
+                            ) {
+                                Text(it.format(DateTimeFormatter.ofPattern("EEE, dd.MM")))
+                            }
+
                         }
-
                     }
                 }
             }
@@ -325,10 +349,23 @@ private fun AddTime(addTimeEntries: (LocalDate?) -> Unit, missingEntryDates: Lis
 }
 
 @Composable
-private fun Logs(list: List<Pair<String, LogLevel>>, modifier: Modifier) {
+private fun Logs(list: List<Pair<String, LogLevel>>, clearLogs: () -> Unit, modifier: Modifier = Modifier) {
     val logs = remember(list) { list.reversed() }
-    Column(verticalArrangement = Arrangement.spacedBy(16.dp), modifier = modifier) {
-        Text("Logs")
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp), modifier = modifier.fillMaxHeight()) {
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("Logs", style = MaterialTheme.typography.h4)
+            OutlinedButton(
+                onClick = clearLogs,
+                contentPadding = PaddingValues(8.dp),
+                modifier = Modifier.height(32.dp)
+            ) {
+                Text("Clear Logs", style = MaterialTheme.typography.caption)
+            }
+        }
         LazyColumn(
             reverseLayout = true,
             modifier = Modifier.fillMaxWidth()
@@ -353,7 +390,7 @@ private fun Logs(list: List<Pair<String, LogLevel>>, modifier: Modifier) {
 @Composable
 fun EmptyPreview() {
     FloaterTheme {
-        MainContent(MainState(), {}, {}, {}, { }, {}, { _, _, _ -> }, {})
+        MainContent(MainState(), {}, {}, {}, {}, { _, _, _ -> }, {}, {})
     }
 }
 
@@ -367,8 +404,7 @@ fun ValidPreview() {
             {},
             {},
             { },
-            { },
             { _, _, _ -> },
-            {})
+            {}, {})
     }
 }

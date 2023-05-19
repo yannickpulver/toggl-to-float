@@ -28,6 +28,7 @@ kotlin {
                 implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.5.0")
                 implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.4.0")
                 implementation(compose.desktop.currentOs)
+                //implementation(compose.desktop.macos_arm64)
                 implementation("io.ktor:ktor-client-core:2.1.0")
                 implementation("io.ktor:ktor-client-cio:2.1.0")
                 implementation("ca.gosyer:compose-material-dialogs-datetime:0.8.0")
@@ -42,7 +43,7 @@ kotlin {
 compose.desktop {
     application {
         mainClass = "com.appswithlove.MainKt"
-        javaHome = System.getenv("JDK_15")
+        //javaHome = System.getenv("JDK_15")
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Exe)
             packageName = "Toggl2Float"

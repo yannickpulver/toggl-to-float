@@ -9,7 +9,6 @@ import com.appswithlove.floaat.hex2Rgb
 import com.appswithlove.store.DataStore
 import com.appswithlove.toggl.TogglProjectCreate
 import com.appswithlove.toggl.TogglRepo
-import com.appswithlove.toggl.TogglTagCreate
 import com.appswithlove.toggl.TogglWorkspaceItem
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -80,13 +79,13 @@ class MainViewModel {
         }
     }
 
-    fun loadSwicaWeek() {
+    fun loadTimeLastWeek(projectId: Int) {
         CoroutineScope(Dispatchers.IO).launch {
             val lastMonday = LocalDate.now().with(WeekFields.of(Locale.FRANCE).firstDayOfWeek).minusWeeks(0)
             val lastSunday = lastMonday.plusWeeks(1).minusDays(1)
             val timeEntries = float.getFloatTimeEntries(lastMonday, lastSunday)
-            val swicaEntries = timeEntries.filter { it.project_id == 7728055 }
-            swicaEntries.sortedBy { it.date }.groupBy { it.date }.forEach { (date, entries) ->
+            val projectEntries = timeEntries.filter { it.project_id == projectId }
+            projectEntries.sortedBy { it.date }.groupBy { it.date }.forEach { (date, entries) ->
                 Logger.log(date)
 
                 val newEntries = entries.groupBy { it.notes to it.project_id }.map { (pair, entries) ->
@@ -95,7 +94,6 @@ class MainViewModel {
 
                 newEntries.forEach {
                     val duration = it.hours.toDuration(DurationUnit.HOURS)
-                    val phase = if (it.phase_id == 343078) " (SLA)" else ""
                     Logger.log(
                         "${
                             duration.toComponents { hours, minutes, _, _ ->
@@ -106,14 +104,14 @@ class MainViewModel {
                                     )
                                 }"
                             }
-                        } — ${it.notes} $phase"
+                        } — ${it.notes} (${it.phase_id})"
                     )
                 }
             }
         }
     }
 
-    fun clear() {
+    fun reset() {
         Logger.clear()
         dataStore.clear()
         refresh()
@@ -135,12 +133,6 @@ class MainViewModel {
     fun removeProjects() {
         CoroutineScope(Dispatchers.IO).launch {
             removeOldProjects()
-        }
-    }
-
-    fun updateColors() {
-        CoroutineScope(Dispatchers.IO).launch {
-            updateProjectColors()
         }
     }
 
@@ -241,9 +233,12 @@ class MainViewModel {
 
         Logger.log("🎉 Sync Complete.")
 
-
-
     }
+
+    fun clearLogs() {
+        Logger.clear()
+    }
+
 
     suspend fun removeOldProjects() {
         val workspace = toggl.getWorkspaces() ?: throw Exception("Couldn't get Toggle Workspace")
@@ -275,36 +270,6 @@ class MainViewModel {
         }
         toggl.putTimeEntries(workspace.id, modifiedEntries)
     }
-
-
-    private suspend fun updateProjectColors() {
-        val workspace = toggl.getWorkspaces() ?: throw Exception("Couldn't get Toggle Workspace")
-
-        val floatProjects = float.getFloatProjects()
-        val togglProjects = toggl.getTogglProjects()
-
-//        val existingProjects =
-//            floatProjects.filter { floatProject -> togglProjects.any { it.name.contains(floatProject.first) } }
-//                .map { floatProject ->
-//                    val colorString = floatColorToTogglColor(floatProject.second)
-//                    TogglProject(
-//                        name = floatProject.first,
-//                        color = colorString,
-//                        project_id = togglProjects.firstOrNull { it.name.contains(floatProject.first) }?.id ?: -1
-//                    )
-//                }
-//
-//        if (existingProjects.isNotEmpty()) {
-//            Logger.log("⬆️ Syncing Colors to Toggl — (${existingProjects.size}) of ${floatProjects.size}")
-//            Logger.log("---")
-//        } else {
-//            Logger.log("🎉 All Float projects already up-to-date in Toggl!")
-//            return
-//        }
-//
-//        toggl.updateProjectColors(workspace.id, existingProjects)
-    }
-
 
     private fun floatColorToTogglColor(colorString: String?): String? {
         val color = try {
