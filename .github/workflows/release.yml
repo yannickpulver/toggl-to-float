@@ -1,0 +1,38 @@
+name: "Release"
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build:
+
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: set up JDK 15
+        uses: actions/setup-java@v3
+        with:
+          java-version: '15'
+          distribution: 'zulu'
+          cache: gradle
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+      - name: Build with Gradle
+        run: ./gradlew packageReleaseDmg
+
+      - name: Upload DMG as Artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: Toggl2Float-dmg
+          path: build/compose/binaries/main-release/dmg/*.dmg
+
+      - uses: "marvinpinto/action-automatic-releases@latest"
+        with:
+          repo_token: "${{ secrets.GITHUB_TOKEN }}"
+          prerelease: false
+          files: |
+            build/compose/binaries/main-release/dmg/*.dmg
