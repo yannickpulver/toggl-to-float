@@ -6,10 +6,8 @@ on:
       - "v*"
 
 jobs:
-  build:
-
+  buildMac:
     runs-on: macos-latest
-
     steps:
       - uses: actions/checkout@v3
       - name: Download JBR
@@ -35,9 +33,44 @@ jobs:
           name: Toggl2Float-dmg
           path: build/compose/binaries/main-release/dmg/*.dmg
 
+  buildWindows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Download JBR
+        uses: carlosperate/download-file-action@v2
+        with:
+          file-url: 'https://cache-redirector.jetbrains.com/intellij-jbr/jbrsdk_jcef-17.0.7-windows-x64-b1000.2.tar.gz'
+          file-name: 'jbr-17.0.7.tar.gz'
+
+      - name: Setup Java
+        uses: actions/setup-java@v3
+        with:
+          java-version: 17
+          distribution: jdkfile
+          jdkFile: jbr-17.0.7.tar.gz
+          cache: gradle
+
+      - name: Build with Gradle
+        run: ./gradlew.bat packageReleaseExe
+
+      - name: Upload EXE as Artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: Toggl2Float-exe
+          path: build/compose/binaries/main-release/exe/*.exe
+
+  release:
+    needs: [ buildMac, buildWindows ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all workflow run artifacts
+        uses: actions/download-artifact@v2
+
       - uses: "marvinpinto/action-automatic-releases@latest"
         with:
           repo_token: "${{ secrets.GITHUB_TOKEN }}"
           prerelease: false
           files: |
-            build/compose/binaries/main-release/dmg/*.dmg
+            ./Toggl2Float-dmg/*.dmg
+            ./Toggl2Float-exe/*.exe
