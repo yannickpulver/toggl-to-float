@@ -43,11 +43,10 @@ import com.vanpra.composematerialdialogs.rememberMaterialDialogState
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
-val viewModel = MainViewModel()
 
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
-fun MainContent() {
+fun MainContent(viewModel: MainViewModel) {
 
     val state = viewModel.state.collectAsState()
 
@@ -55,7 +54,6 @@ fun MainContent() {
     var hasFocus by remember { mutableStateOf(false) }
     MainContent(
         state = state.value,
-        reset = viewModel::reset,
         syncProjects = viewModel::fetchProjects,
         removeProjects = viewModel::removeProjects,
         addTimeEntries = viewModel::addTimeEntries,
@@ -90,7 +88,6 @@ fun Version(modifier: Modifier = Modifier) {
 @Composable
 private fun MainContent(
     state: MainState,
-    reset: () -> Unit,
     syncProjects: () -> Unit,
     removeProjects: () -> Unit,
     addTimeEntries: (LocalDate?) -> Unit,
@@ -128,7 +125,7 @@ private fun MainContent(
                 }
                 Divider(modifier = Modifier.width(1.dp).fillMaxHeight())
                 AnimatedVisibility(state.isValid) {
-                    YourWeek(state, reset, loadLastWeek)
+                    YourWeek(state, loadLastWeek)
                 }
             }
 
@@ -138,7 +135,7 @@ private fun MainContent(
 }
 
 @Composable
-private fun YourWeek(state: MainState, clear: () -> Unit, loadLastWeek: (Int) -> Unit) {
+private fun YourWeek(state: MainState, loadLastWeek: (Int) -> Unit) {
     val (toggle, onToggleChange) = remember { mutableStateOf(true) }
 
     Column(Modifier.background(MaterialTheme.colors.onSurface.copy(0.05f)).fillMaxHeight().padding(8.dp)) {
@@ -224,14 +221,6 @@ private fun YourWeek(state: MainState, clear: () -> Unit, loadLastWeek: (Int) ->
                     }
                 } else {
                     Loading()
-                }
-                Spacer(Modifier.weight(1f))
-                OutlinedButton(
-                    onClick = { clear() },
-                    modifier = Modifier.align(Alignment.End).height(32.dp),
-                    contentPadding = PaddingValues(8.dp)
-                ) {
-                    Text("Reset T2F", style = MaterialTheme.typography.caption)
                 }
             }
         }
@@ -390,7 +379,7 @@ private fun Logs(list: List<Pair<String, LogLevel>>, clearLogs: () -> Unit, modi
 @Composable
 fun EmptyPreview() {
     FloaterTheme {
-        MainContent(MainState(), {}, {}, {}, {}, { _, _, _ -> }, {}, {})
+        MainContent(MainState(), {}, {}, {}, { _, _, _ -> }, {}, {})
     }
 }
 
@@ -403,7 +392,6 @@ fun ValidPreview() {
             {},
             {},
             {},
-            { },
             { _, _, _ -> },
             {}, {})
     }

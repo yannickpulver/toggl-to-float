@@ -81,7 +81,7 @@ class MainViewModel {
 
     fun loadTimeLastWeek(projectId: Int) {
         CoroutineScope(Dispatchers.IO).launch {
-            val lastMonday = LocalDate.now().with(WeekFields.of(Locale.FRANCE).firstDayOfWeek).minusWeeks(0)
+            val lastMonday = LocalDate.now().with(WeekFields.of(Locale.FRANCE).firstDayOfWeek).minusWeeks(1)
             val lastSunday = lastMonday.plusWeeks(1).minusDays(1)
             val timeEntries = float.getFloatTimeEntries(lastMonday, lastSunday)
             val projectEntries = timeEntries.filter { it.project_id == projectId }
