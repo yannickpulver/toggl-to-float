@@ -27,10 +27,8 @@ jobs:
           jdkFile: jbr-17.0.7.tar.gz
           cache: gradle
 
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
       - name: Build with Gradle
-        run: ./gradlew packageReleaseDmg
+        run: gradlew.bat packageReleaseDmg
 
       - name: Upload DMG as Artifact
         uses: actions/upload-artifact@v2
@@ -56,11 +54,8 @@ jobs:
               jdkFile: jbr-17.0.7.tar.gz
               cache: gradle
 
-          - name: Setup Gradle
-            uses: gradle/gradle-build-action@v2
-
           - name: Build with Gradle
-            run: ./gradlew packageReleaseExe
+            run: gradlew.bat packageReleaseExe
 
           - name: Upload EXE as Artifact
             uses: actions/upload-artifact@v2

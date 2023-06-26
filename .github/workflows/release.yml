@@ -26,8 +26,6 @@ jobs:
           jdkFile: jbr-17.0.7.tar.gz
           cache: gradle
 
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
       - name: Build with Gradle
         run: ./gradlew packageReleaseDmg
 
