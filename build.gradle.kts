@@ -46,6 +46,7 @@ compose.desktop {
         mainClass = "com.appswithlove.MainKt"
         //javaHome = System.getenv("JDK_15")
         nativeDistributions {
+            modules("jdk.unsupported")
             targetFormats(TargetFormat.Dmg, TargetFormat.Exe)
             packageName = "Toggl2Float"
             packageVersion = "1.1.0"
