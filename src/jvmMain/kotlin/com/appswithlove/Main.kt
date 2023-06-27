@@ -47,7 +47,7 @@ fun main() = application {
         title = "Toggl 👉 Float",
         showTitle = true, // If you want to render your own component in the center of the title bar like Intellij do, disable this to hide the title of the MainToolBar (TitleBar).
         theme = theme, // Change the theme here, LightTheme and DarkTheme are provided.
-        icon = painterResource("drawable/icon.png"),
+        icon = painterResource("icons/icon_24.svg"),
         mainToolBar = {
             // Render your own component in the MainToolBar (TitleBar).
             Row(
