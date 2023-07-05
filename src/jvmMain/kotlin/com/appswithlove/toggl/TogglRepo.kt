@@ -12,6 +12,8 @@ import io.ktor.client.engine.cio.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
+import kotlinx.datetime.Instant
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import java.time.LocalDate
@@ -19,6 +21,11 @@ import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.*
 import kotlin.math.abs
+
+private val HttpResponse.isSuccess: Boolean
+    get() {
+        return status == HttpStatusCode.OK || status == HttpStatusCode.Created
+    }
 
 class TogglRepo constructor(private val dataStore: DataStore) {
 
@@ -36,11 +43,12 @@ class TogglRepo constructor(private val dataStore: DataStore) {
         return entries.map { ZonedDateTime.parse(it.start).toLocalDate() }.distinct()
     }
 
+    var projects: List<Project>? = null
     suspend fun getTogglProjects(): List<Project> {
         val apiKey = getTogglApiKey()
         val projectsApi = "https://api.track.toggl.com/api/v9/me/projects"
         val response = getRequest(apiKey, projectsApi)
-        return json.decodeFromString(response.body())
+        return projects ?: json.decodeFromString<List<Project>>(response.body()).also { projects = it }
     }
 
 
@@ -71,6 +79,21 @@ class TogglRepo constructor(private val dataStore: DataStore) {
             dataStore.setTogglApiKey(key)
         }
         return key
+    }
+
+    suspend fun startTimer(workspaceId: Int, project: Project, task: String) {
+        Logger.log("Trying to start timer...")
+        val togglApiKey = getTogglApiKey()
+        val api = "https://api.track.toggl.com/api/v9/workspaces/${workspaceId}/time_entries"
+
+        val timeEntry = TimeEntryCreate(project_id = project.id, tags = listOf(task), workspace_id = workspaceId)
+        val response = postRequest(api, json.encodeToString(timeEntry), togglApiKey)
+        if (response.isSuccess) {
+            Logger.log("Started timer for ${project.name}")
+        } else {
+            Logger.log("Error happened - ${response.bodyAsText()}")
+        }
+        // call the api with the correct model
     }
 
     suspend fun pushProjectsToToggl(

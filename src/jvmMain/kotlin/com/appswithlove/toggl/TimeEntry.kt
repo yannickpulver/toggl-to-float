@@ -4,7 +4,7 @@ import kotlinx.serialization.Serializable
 data class TimeEntry(
     val at: String,
     val billable: Boolean,
-    val description: String,
+    val description: String?,
     val duration: Int,
     val duronly: Boolean,
     val id: Long,

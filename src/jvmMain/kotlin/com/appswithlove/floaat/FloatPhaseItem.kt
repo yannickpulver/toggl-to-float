@@ -19,3 +19,5 @@ data class FloatPhaseItem(
     val notes: String? = null,
     val tentative: Int? = null
 )
+
+val FloatPhaseItem.rgbColor get() = color?.let(::hex2Rgb)?.copy(alpha = 1f)

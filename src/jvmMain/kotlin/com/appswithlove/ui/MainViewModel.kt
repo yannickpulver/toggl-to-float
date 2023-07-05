@@ -13,11 +13,17 @@ import com.appswithlove.toggl.TogglWorkspaceItem
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.temporal.WeekFields
-import java.util.*
+import java.util.Locale
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
 
@@ -72,7 +78,10 @@ class MainViewModel {
 
     private fun getLastEntry() {
         CoroutineScope(Dispatchers.IO).launch {
-            val entries = float.getFloatTimeEntries(from = LocalDate.now().minusWeeks(2), to = LocalDate.now())
+            val entries = float.getFloatTimeEntries(
+                from = LocalDate.now().minusWeeks(2),
+                to = LocalDate.now()
+            )
             val max = entries.maxByOrNull { it.date }
             val parsedDate = max?.date?.let { LocalDate.parse(it) }
             _state.update { it.copy(lastEntryDate = parsedDate) }
@@ -81,16 +90,18 @@ class MainViewModel {
 
     fun loadTimeLastWeek(projectId: Int) {
         CoroutineScope(Dispatchers.IO).launch {
-            val lastMonday = LocalDate.now().with(WeekFields.of(Locale.FRANCE).firstDayOfWeek).minusWeeks(1)
+            val lastMonday =
+                LocalDate.now().with(WeekFields.of(Locale.FRANCE).firstDayOfWeek).minusWeeks(1)
             val lastSunday = lastMonday.plusWeeks(1).minusDays(1)
             val timeEntries = float.getFloatTimeEntries(lastMonday, lastSunday)
             val projectEntries = timeEntries.filter { it.project_id == projectId }
             projectEntries.sortedBy { it.date }.groupBy { it.date }.forEach { (date, entries) ->
                 Logger.log(date)
 
-                val newEntries = entries.groupBy { it.notes to it.project_id }.map { (pair, entries) ->
-                    entries.first().copy(hours = entries.sumOf { it.hours })
-                }
+                val newEntries =
+                    entries.groupBy { it.notes to it.project_id }.map { (pair, entries) ->
+                        entries.first().copy(hours = entries.sumOf { it.hours })
+                    }
 
                 newEntries.forEach {
                     val duration = it.hours.toDuration(DurationUnit.HOURS)
@@ -151,7 +162,6 @@ class MainViewModel {
         } catch (exception: java.lang.Exception) {
             Logger.err("Double check your dates to have format YYYY-MM-DD")
         }
-
     }
 
     fun save(togglApiKey: String?, floatApiKey: String?, peopleItem: FloatPeopleItem?) {
@@ -191,7 +201,8 @@ class MainViewModel {
                     TogglProjectCreate(
                         name = floatProject.name,
                         color = colorString,
-                        id = togglProjects.firstOrNull { it.projectIdNew == floatProject.id }?.id ?: -1,
+                        id = togglProjects.firstOrNull { it.projectIdNew == floatProject.id }?.id
+                            ?: -1,
                         active = floatProject.isActive
                     )
                 }
@@ -227,18 +238,15 @@ class MainViewModel {
         // time entries
         migrateTimeEntries(workspace)
 
-
         // clean old projects
         removeOldProjects()
 
         Logger.log("🎉 Sync Complete.")
-
     }
 
     fun clearLogs() {
         Logger.clear()
     }
-
 
     suspend fun removeOldProjects() {
         val workspace = toggl.getWorkspaces() ?: throw Exception("Couldn't get Toggle Workspace")
@@ -247,7 +255,6 @@ class MainViewModel {
         val toremove = togglProjects.filter { it.projectId != null && it.projectIdNew == null }
         toggl.deleteProjects(workspace.id, toremove.map { it.id })
     }
-
 
     suspend fun migrateTimeEntries(workspace: TogglWorkspaceItem) {
         Logger.log("🐧 Checking if migrations needed for time entries in the past 2 months")
@@ -271,6 +278,19 @@ class MainViewModel {
         toggl.putTimeEntries(workspace.id, modifiedEntries)
     }
 
+    fun startTimer(id: Int, tag: String) {
+
+        CoroutineScope(Dispatchers.IO).launch {
+            val workspace =
+                toggl.getWorkspaces() ?: throw Exception("Couldn't get Toggle Workspace")
+            // get id of project or phase
+            val project = toggl.getTogglProjects().first { it.name.contains(id.toString()) }
+
+            // find toggl project that contains this id
+            toggl.startTimer(workspace.id, project, tag)
+        }
+    }
+
     private fun floatColorToTogglColor(colorString: String?): String? {
         val color = try {
             hex2Rgb(colorString)?.let { toggl.getClosestTogglColor(it) }
@@ -280,7 +300,6 @@ class MainViewModel {
         return color?.toArgb()?.let { Integer.toHexString(it) }?.drop(2)?.let { "#$it" }
     }
 
-
     private suspend fun addTimeEntries(date: LocalDate): Boolean {
         val timeEntries = toggl.getTogglTimeEntries(date, date)
         Logger.log("⏱ Found ${timeEntries.size} time entries for $date on Toggl!")
@@ -289,7 +308,8 @@ class MainViewModel {
             return true
         }
         val projects = toggl.getTogglProjects()
-        val pairs = timeEntries.map { time -> time to projects.firstOrNull { it.id == time.project_id } }
+        val pairs =
+            timeEntries.map { time -> time to projects.firstOrNull { it.id == time.project_id } }
 
         val timeEntriesOnDate = float.getFloatTimeEntries(date, date)
         if (timeEntriesOnDate.isNotEmpty()) {
@@ -316,6 +336,4 @@ class MainViewModel {
         float.pushToFloat(date, data)
         return true
     }
-
-
 }
