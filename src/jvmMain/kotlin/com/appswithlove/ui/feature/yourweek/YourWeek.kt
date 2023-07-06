@@ -1,6 +1,8 @@
 package com.appswithlove.ui.feature.yourweek
 
 import androidx.compose.desktop.ui.tooling.preview.Preview
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.PointerMatcher
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -11,15 +13,21 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.onClick
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.Card
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Text
 import androidx.compose.material.contentColorFor
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.PointerButton
+import androidx.compose.ui.platform.ClipboardManager
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -29,8 +37,10 @@ import com.appswithlove.floaat.FloatProject
 import com.appswithlove.floaat.rgbColor
 import com.appswithlove.ui.Loading
 import com.appswithlove.ui.MainState
+import com.appswithlove.ui.feature.snackbar.SnackbarStateHolder
 import com.appswithlove.ui.theme.FloaterTheme
 import com.appswithlove.ui.totalHours
+import kotlinx.coroutines.launch
 import kotlin.math.pow
 
 @Composable
@@ -44,7 +54,7 @@ fun YourWeek(state: MainState, loadLastWeek: (Int) -> Unit, startTimer: (Int, St
             state = state,
             loadLastWeek = loadLastWeek,
             modifier = Modifier.width(250.dp),
-            startTimer
+            startTimer = startTimer
         )
     }
 }
@@ -82,6 +92,7 @@ fun YourWeekContent(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ProjectItem(
     project: FloatProject?,
@@ -89,10 +100,13 @@ private fun ProjectItem(
     loadLastWeek: (Int) -> Unit,
     startTimer: (Int, String) -> Unit = { _, _ -> }
 ) {
+    val clipboardManager: ClipboardManager = LocalClipboardManager.current
+    val scope = rememberCoroutineScope()
     Box(
         modifier = Modifier
             .clip(MaterialTheme.shapes.medium)
             .background(MaterialTheme.colors.surface)
+
     ) {
         Column(
             verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -102,12 +116,30 @@ private fun ProjectItem(
                 Card(
                     backgroundColor = color,
                     contentColor = suitableContentColor(color),
-                    modifier = Modifier.fillMaxWidth().clickable(onClick = {
-                        startTimer(
-                            item.phase?.phase_id ?: item.project?.project_id ?: -1,
-                            item.task.name
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(
+                            onClick = {
+                                startTimer(
+                                    item.phase?.phase_id ?: item.project?.project_id ?: -1,
+                                    item.task.name
+                                )
+                            })
+                        .onClick(
+                            matcher = PointerMatcher.mouse(PointerButton.Secondary),
+                            onClick = {
+                                clipboardManager.setText(AnnotatedString(item.id.toString()))
+                                scope.launch {
+                                    SnackbarStateHolder.success("Copied ${item.id} to clipboard")
+                                }
+                            }
                         )
-                    }),
+                        .onClick(
+                            matcher = PointerMatcher.mouse(PointerButton.Tertiary),
+                            onClick = {
+                                loadLastWeek(item.project?.project_id ?: -1)
+                            }
+                        ),
                     elevation = 0.dp
                 ) {
                     Column(Modifier.padding(8.dp, 4.dp)) {
