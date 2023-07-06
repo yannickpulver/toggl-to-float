@@ -89,7 +89,7 @@ class TogglRepo constructor(private val dataStore: DataStore) {
         val timeEntry = TimeEntryCreate(project_id = project.id, tags = listOf(task), workspace_id = workspaceId)
         val response = postRequest(api, json.encodeToString(timeEntry), togglApiKey)
         if (response.isSuccess) {
-            Logger.log("Started timer for ${project.name}")
+            Logger.log("✅Started timer for ${project.name}")
         } else {
             Logger.log("Error happened - ${response.bodyAsText()}")
         }

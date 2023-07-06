@@ -10,6 +10,7 @@ import com.appswithlove.store.DataStore
 import com.appswithlove.toggl.TogglProjectCreate
 import com.appswithlove.toggl.TogglRepo
 import com.appswithlove.toggl.TogglWorkspaceItem
+import com.appswithlove.ui.feature.snackbar.SnackbarStateHolder
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -34,14 +35,16 @@ class MainViewModel {
     private val toggl = TogglRepo(dataStore)
     private var initDone: Boolean = false
 
+    private val loadingCounter = MutableStateFlow(0)
     private val _state = MutableStateFlow(MainState(loading = true))
-    val state: StateFlow<MainState> = combine(_state, Logger.logs) { state, logs ->
-        state.copy(logs = logs)
-    }.stateIn(
-        scope = CoroutineScope(Dispatchers.Default),
-        started = SharingStarted.WhileSubscribed(5000),
-        initialValue = MainState(),
-    )
+    val state: StateFlow<MainState> =
+        combine(_state, Logger.logs, loadingCounter) { state, logs, loadingCounter ->
+            state.copy(logs = logs, loading = loadingCounter > 0)
+        }.stateIn(
+            scope = CoroutineScope(Dispatchers.Default),
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = MainState(),
+        )
 
     init {
         refresh()
@@ -71,9 +74,17 @@ class MainViewModel {
 
     private fun getWeeklyOverview() {
         CoroutineScope(Dispatchers.IO).launch {
-            val overview = float.getWeeklyOverview()
-            _state.update { it.copy(weeklyOverview = overview) }
+            withLoading {
+                val overview = float.getWeeklyOverview()
+                _state.update { it.copy(weeklyOverview = overview) }
+            }
         }
+    }
+
+    private suspend fun withLoading(block: suspend () -> Unit) {
+        loadingCounter.update { it + 1 }
+        block()
+        loadingCounter.update { it - 1 }
     }
 
     private fun getLastEntry() {
@@ -131,7 +142,9 @@ class MainViewModel {
 
     fun fetchProjects() {
         CoroutineScope(Dispatchers.IO).launch {
-            fetchProjectsInt()
+            withLoading {
+                fetchProjectsInt()
+            }
         }
     }
 
@@ -148,19 +161,24 @@ class MainViewModel {
     }
 
     fun addTimeEntries(from: LocalDate?) {
-        from ?: return // todo add snackbar
-
-        try {
-            //val toDate = LocalDate.parse(to)
-
+        if (from == null) {
             CoroutineScope(Dispatchers.IO).launch {
-                val success = addTimeEntries(from)
-                if (success && state.value.missingEntryDates.contains(from)) {
-                    _state.update { it.copy(missingEntryDates = it.missingEntryDates.filter { it != from }) }
+                SnackbarStateHolder.error("Double check your date")
+            }
+            return
+        }
+
+        CoroutineScope(Dispatchers.IO).launch {
+            withLoading {
+                try {
+                    val success = addTimeEntries(from)
+                    if (success && state.value.missingEntryDates.contains(from)) {
+                        _state.update { it.copy(missingEntryDates = it.missingEntryDates.filter { it != from }) }
+                    }
+                } catch (exception: java.lang.Exception) {
+                    Logger.err("Double check your dates to have format YYYY-MM-DD")
                 }
             }
-        } catch (exception: java.lang.Exception) {
-            Logger.err("Double check your dates to have format YYYY-MM-DD")
         }
     }
 
@@ -217,7 +235,7 @@ class MainViewModel {
 
         if (newProjects.isNotEmpty()) {
             Logger.log("⬆️ Syncing new Float projects to Toggl — (${newProjects.size}) of ${floatProjects.size}")
-            Logger.log("---")
+            Logger.log(Logger.SPACER)
             toggl.pushProjectsToToggl(workspace.id, newProjects)
         }
         if (modifiedProjects.isNotEmpty()) {
@@ -257,7 +275,7 @@ class MainViewModel {
     }
 
     suspend fun migrateTimeEntries(workspace: TogglWorkspaceItem) {
-        Logger.log("🐧 Checking if migrations needed for time entries in the past 2 months")
+        Logger.log("🐧 Checking for migrations...")
         delay(2000)
         // Modify entries
         val entries = toggl.getTogglTimeEntries(LocalDate.now().minusMonths(2), LocalDate.now())
@@ -313,8 +331,8 @@ class MainViewModel {
 
         val timeEntriesOnDate = float.getFloatTimeEntries(date, date)
         if (timeEntriesOnDate.isNotEmpty()) {
-            Logger.log("---")
-            Logger.err("⚠️ There are already existing time entries for that date. Can't guarantee to not mess up. So please remove them first for $date")
+            Logger.log(Logger.SPACER)
+            Logger.err("⚠️ There are already existing time entries for $date. Please remove them and try again.")
             return false
         }
 

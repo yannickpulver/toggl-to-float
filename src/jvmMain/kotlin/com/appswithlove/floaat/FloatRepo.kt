@@ -27,7 +27,7 @@ import kotlin.math.roundToInt
 class FloatRepo constructor(private val dataStore: DataStore) {
     suspend fun pushToFloat(date: LocalDate, pairs: List<TimeEntryForPublishing>) {
         Logger.log("⬆️ Uploading ${pairs.size} time entries to Float!")
-        Logger.log("---")
+        Logger.log(Logger.SPACER)
         val floatUrl = getFloatUrl()
         val endpoint = "$floatUrl/logged-time"
 
@@ -67,7 +67,7 @@ class FloatRepo constructor(private val dataStore: DataStore) {
         val totalEntriesSaved = dataStore.addAndGetTimeEntryCount(timeEntries.size)
         val timeSaved = getTimeSaved(timeEntries.size)
         val totalTimeSaved = getTimeSaved(totalEntriesSaved)
-        Logger.log("---")
+        Logger.log(Logger.SPACER)
         Logger.log("🎉 You just saved $timeSaved. And a total of $totalTimeSaved!")
     }
 
@@ -280,7 +280,7 @@ class FloatRepo constructor(private val dataStore: DataStore) {
 
     suspend fun getFloatProjects(): List<FloatProjectItem> {
         val floatUrl = getFloatUrl()
-        Logger.log("Downloading Float Projects ⬇️")
+        Logger.log("🌊 Downloading Float Projects")
 
         val projectList = getAllPages<FloatProject>("$floatUrl/projects")
 

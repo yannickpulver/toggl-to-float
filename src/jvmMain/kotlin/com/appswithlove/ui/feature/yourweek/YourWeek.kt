@@ -9,19 +9,21 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.onClick
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.Card
+import androidx.compose.material.Divider
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Text
 import androidx.compose.material.contentColorFor
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.PointerButton
@@ -40,20 +42,15 @@ import com.appswithlove.ui.MainState
 import com.appswithlove.ui.feature.snackbar.SnackbarStateHolder
 import com.appswithlove.ui.theme.FloaterTheme
 import com.appswithlove.ui.totalHours
-import kotlinx.coroutines.launch
 import kotlin.math.pow
 
 @Composable
 fun YourWeek(state: MainState, loadLastWeek: (Int) -> Unit, startTimer: (Int, String) -> Unit) {
-
-    Column(
-        Modifier.background(MaterialTheme.colors.onSurface.copy(0.05f)).fillMaxHeight()
-            .padding(8.dp)
-    ) {
+    Column {
         YourWeekContent(
             state = state,
             loadLastWeek = loadLastWeek,
-            modifier = Modifier.width(250.dp),
+            modifier = Modifier.fillMaxWidth(),
             startTimer = startTimer
         )
     }
@@ -67,16 +64,24 @@ fun YourWeekContent(
     startTimer: (Int, String) -> Unit
 ) {
     Column(modifier) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "Your Week",
+                style = MaterialTheme.typography.h4,
+                modifier = Modifier.weight(1f)
+            )
+            if (state.weeklyOverview.isNotEmpty()) {
+                Text(
+                    "Planned hours: ${state.weeklyOverview.totalHours}h",
+                    style = MaterialTheme.typography.body2
+                )
+            }
+        }
         Text(
-            "Your Week",
-            style = MaterialTheme.typography.h4,
-            modifier = Modifier.padding(top = 8.dp)
+            "Click to start timer",
+            style = MaterialTheme.typography.body2
         )
         if (state.weeklyOverview.isNotEmpty()) {
-            Text(
-                "Planned hours: ${state.weeklyOverview.totalHours}h",
-                style = MaterialTheme.typography.caption
-            )
             Column(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.padding(top = 16.dp)
@@ -86,6 +91,7 @@ fun YourWeekContent(
                     ProjectItem(project, items, loadLastWeek, startTimer)
                 }
             }
+            Divider()
         } else {
             Loading()
         }
@@ -129,9 +135,7 @@ private fun ProjectItem(
                             matcher = PointerMatcher.mouse(PointerButton.Secondary),
                             onClick = {
                                 clipboardManager.setText(AnnotatedString(item.id.toString()))
-                                scope.launch {
-                                    SnackbarStateHolder.success("Copied ${item.id} to clipboard")
-                                }
+                                SnackbarStateHolder.success("Copied ${item.id} to clipboard")
                             }
                         )
                         .onClick(
@@ -156,16 +160,17 @@ private fun ProjectItem(
                         item.project?.name?.let {
                             Text(it, style = MaterialTheme.typography.body2)
                         }
-                        Row(Modifier.padding(top = 8.dp)) {
+                        Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Spacer(Modifier.weight(1f))
                             Text(
                                 "[${item.id}]",
                                 style = MaterialTheme.typography.caption.copy(fontWeight = FontWeight.Normal),
-                                modifier = Modifier.weight(1f),
+                                modifier = Modifier.alpha(0.8f),
                             )
                             Text(
                                 "${item.weekHours}h",
                                 style = MaterialTheme.typography.caption,
-                                modifier = Modifier.weight(1f),
+                                modifier = Modifier,
                                 textAlign = TextAlign.End
                             )
                         }

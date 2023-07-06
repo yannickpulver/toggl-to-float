@@ -1,7 +1,10 @@
 package com.appswithlove.ui.feature.snackbar
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.launch
 
 /**
  * Global holder of snackbar state
@@ -15,12 +18,16 @@ object SnackbarStateHolder {
         _snackbarState.emit(snackbar)
     }
 
-    suspend fun error(message: String? = null, resArgs: List<Any> = emptyList()) {
-        put(SnackbarState.Error(message = message))
+    fun error(message: String? = null, resArgs: List<Any> = emptyList()) {
+        CoroutineScope(Dispatchers.IO).launch {
+            put(SnackbarState.Error(message = message))
+        }
     }
 
-    suspend fun success(message: String? = null, resArgs: List<Any> = emptyList()) {
-        put(SnackbarState.Success(message = message))
+    fun success(message: String? = null, resArgs: List<Any> = emptyList()) {
+        CoroutineScope(Dispatchers.IO).launch {
+            put(SnackbarState.Success(message = message))
+        }
     }
 }
 
@@ -28,4 +35,9 @@ object SnackbarStateHolder {
 sealed class SnackbarState {
     data class Success(val message: String? = null) : SnackbarState()
     data class Error(val message: String? = null) : SnackbarState()
+}
+
+enum class SnackbarActionLabel {
+    SUCCESS,
+    ERROR
 }

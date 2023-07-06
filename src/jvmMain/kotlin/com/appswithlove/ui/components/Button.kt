@@ -13,12 +13,21 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.appswithlove.ui.theme.FloaterTheme
+import io.kanro.compose.jetbrains.expui.control.OutlineButton
 
 @Composable
 fun PrimaryButton(onClick: () -> Unit, modifier: Modifier = Modifier, content: @Composable RowScope.() -> Unit) {
     Button(
         onClick = onClick,
         contentPadding = PaddingValues(8.dp),
+        modifier = modifier.height(32.dp),
+        content = content
+    )
+}
+@Composable
+fun PrimaryOutlineButton(onClick: () -> Unit, modifier: Modifier = Modifier, content: @Composable RowScope.() -> Unit) {
+    OutlineButton(
+        onClick = onClick,
         modifier = modifier.height(32.dp),
         content = content
     )
