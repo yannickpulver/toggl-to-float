@@ -22,6 +22,14 @@ data class FloatProject(
     val project_manager: Int? = null,
     val tags: List<String>? = null,
     val tentative: Int? = null
-)
+) {
+    companion object {
+        val Preview = FloatProject(
+            project_id = 1,
+            name = "Project 1",
+            color = "fbc84c"
+        )
+    }
+}
 
 val FloatProject.rgbColor get() = color?.let(::hex2Rgb)?.copy(alpha = 1f)

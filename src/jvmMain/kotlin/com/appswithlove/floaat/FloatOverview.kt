@@ -9,8 +9,17 @@ data class FloatOverview(
     val phase: FloatPhaseItem? = null,
 ) {
     val weekHours = task.hours * 5
-    //val color = (phase?.color?.let(::hex2Rgb) ?: project?.color?.let(::hex2Rgb) ?: Color.DarkGray).copy(alpha = 1f)
     val color = (project?.color?.let(::hex2Rgb) ?: Color.DarkGray).copy(alpha = 1f)
+
+
+    val title = (task.name.ifEmpty { null } ?: phase?.name ?: project?.name ?: "Unknown")
+    val id = phase?.phase_id ?: project?.project_id
+
+    companion object {
+        val Preview = FloatOverview(FloatTask.Preview)
+    }
 }
 
 val List<FloatOverview>.totalHours get() = this.sumOf { it.weekHours }
+
+

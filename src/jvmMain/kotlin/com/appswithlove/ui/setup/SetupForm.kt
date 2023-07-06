@@ -65,7 +65,7 @@ fun SetupForm(
 private fun FloatSetup(key: String, onChange: (String) -> Unit) {
     Text(
         "🔑 Setup Float API Key: Get the API key (e.g. from 1Password) & paste it in the field below:",
-        modifier = Modifier.fillMaxWidth(0.8f)
+        modifier = Modifier.fillMaxWidth()
     )
     OutlinedTextField(
         value = key,
@@ -81,7 +81,7 @@ private fun FloatSetup(key: String, onChange: (String) -> Unit) {
 private fun TogglSetup(key: String, onChange: (String) -> Unit) {
     Text(
         "🔑 Setup Toggl API Key: Please visit https://track.toggl.com/profile (click the button below) and copy the key from the 'API Token' section here & paste it in the field below.",
-        modifier = Modifier.fillMaxWidth(0.8f)
+        modifier = Modifier.fillMaxWidth(1f)
     )
     OutlinedButton({ openInBrowser(URI("https://track.toggl.com/profile")) }) {
         Text("🌍 Open Toggl Website")
@@ -92,7 +92,8 @@ private fun TogglSetup(key: String, onChange: (String) -> Unit) {
         label = {
             Text("Toggl API Key")
         },
-        visualTransformation = PasswordVisualTransformation()
+        visualTransformation = PasswordVisualTransformation(),
+        modifier = Modifier.fillMaxWidth()
     )
 }
 
@@ -104,11 +105,11 @@ private fun PeopleSelection(
 ) {
     Text(
         "🙆 Select your name from the list below:",
-        modifier = Modifier.fillMaxWidth(0.8f)
+        modifier = Modifier.fillMaxWidth()
     )
 
     val lazyListState = rememberLazyListState()
-    Row(Modifier.fillMaxWidth(0.8f).height(300.dp)) {
+    Row(Modifier.fillMaxWidth().height(300.dp)) {
         LazyColumn(
             state = lazyListState,
             modifier = Modifier.weight(1f).border(1.dp, Color.Black, RoundedCornerShape(4.dp)).padding(8.dp)

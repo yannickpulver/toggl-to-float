@@ -1,27 +1,30 @@
 package com.appswithlove.ui
 
+import com.appswithlove.ui.feature.snackbar.SnackbarStateHolder
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.flow.updateAndGet
 
 object Logger {
 
     val logs = MutableStateFlow(emptyList<Pair<String, LogLevel>>())
 
-    fun log(string: String) {
-        logs.update { it + listOf("${it.size} - $string" to LogLevel.Default) }
+    fun log(message: String) {
+        logs.update { it + listOf("${it.size} - $message" to LogLevel.Default) }
+        if (message != SPACER) {
+            SnackbarStateHolder.success(message)
+        }
     }
 
-
-    fun err(string: String) {
-        logs.update { it + listOf("${it.size} - $string" to LogLevel.Error) }
+    fun err(message: String) {
+        logs.update { it + listOf("${it.size} - $message" to LogLevel.Error) }
+        SnackbarStateHolder.error(message)
     }
 
     fun clear() {
         logs.update { emptyList() }
     }
 
-
+    const val SPACER = "---"
 }
 
 enum class LogLevel {

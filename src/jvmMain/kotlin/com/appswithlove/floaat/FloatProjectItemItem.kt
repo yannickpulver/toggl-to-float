@@ -26,4 +26,24 @@ data class FloatTask(
     val status: Int,
     val task_id: Int,
     val task_meta_id: Int
-)
+) {
+    companion object {
+        val Preview = FloatTask(
+            billable = 1,
+            created = "2021-01-01",
+            end_date = "2021-01-01",
+            hours = 1.0,
+            modified = "2021-01-01",
+            modified_by = 1,
+            name = "Task 1",
+            notes = "Notes 1",
+            phase_id = 1,
+            project_id = 1,
+            repeat_state = 1,
+            start_date = "2021-01-01",
+            status = 1,
+            task_id = 1,
+            task_meta_id = 1
+        )
+    }
+}

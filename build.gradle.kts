@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "com.appswithlove"
-version = "1.2.0"
+version = "1.3.0"
 
 repositories {
     google()
@@ -44,12 +44,11 @@ kotlin {
 compose.desktop {
     application {
         mainClass = "com.appswithlove.MainKt"
-        //javaHome = System.getenv("JDK_15")
         nativeDistributions {
             modules("jdk.unsupported")
             targetFormats(TargetFormat.Dmg, TargetFormat.Exe)
             packageName = "Toggl2Float"
-            packageVersion = "1.2.0"
+            packageVersion = "1.3.0"
             macOS {
                 iconFile.set(project.file("icon.icns"))
                 bundleID = "com.appswithlove.toggl2float"

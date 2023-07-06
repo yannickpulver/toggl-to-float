@@ -20,24 +20,24 @@ object Type {
 // Set of Material typography styles to start with
 val Typography = Typography(
     body1 = TextStyle(
-        fontFamily = Avenir,
+     //   fontFamily = Avenir,
         fontWeight = FontWeight.Normal,
         fontSize = 16.sp,
     ),
     caption = TextStyle(
-        fontFamily = Avenir,
+      //  fontFamily = Avenir,
         fontWeight = FontWeight.Bold,
         fontSize = 12.sp,
     ),
     h4 = TextStyle(
-        fontFamily = Avenir,
+      //  fontFamily = Avenir,
         fontWeight = FontWeight.Bold,
         fontSize = 20.sp,
     ),
     button = TextStyle(
-        fontFamily = Avenir,
+       // fontFamily = Avenir,
         fontWeight = FontWeight.Bold,
-        fontSize = 14.sp,
+        fontSize = 12.sp,
     ),
     /* Other default text styles to override
     button = TextStyle(
