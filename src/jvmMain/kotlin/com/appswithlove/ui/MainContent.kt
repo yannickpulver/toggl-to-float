@@ -215,7 +215,7 @@ private fun AddTime(addTimeEntries: (LocalDate?) -> Unit, missingEntryDates: Lis
         }
 
         Column {
-            FlowRow(modifier = Modifier.fillMaxWidth(), mainAxisSpacing = 8.dp) {
+            FlowRow(modifier = Modifier.fillMaxWidth(), mainAxisSpacing = 8.dp, crossAxisSpacing = 8.dp) {
                 OutlinedButton(
                     onClick = { dialogState.show() },
                     contentPadding = PaddingValues(8.dp),

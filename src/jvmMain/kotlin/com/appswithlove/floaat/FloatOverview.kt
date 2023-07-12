@@ -8,7 +8,7 @@ data class FloatOverview(
     val project: FloatProject? = null,
     val phase: FloatPhaseItem? = null,
 ) {
-    val weekHours = task.hours * 5
+    val weekHours = (task.hours * 5 * 100).toInt() / 100.0
     val color = (project?.color?.let(::hex2Rgb) ?: Color.DarkGray).copy(alpha = 1f)
 
 
