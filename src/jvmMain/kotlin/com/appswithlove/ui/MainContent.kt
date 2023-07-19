@@ -20,8 +20,10 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.Card
 import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.Divider
+import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.Icon
 import androidx.compose.material.LocalContentColor
 import androidx.compose.material.MaterialTheme
@@ -31,6 +33,9 @@ import androidx.compose.material.Text
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.rounded.ArrowForward
+import androidx.compose.material.icons.rounded.Build
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -40,6 +45,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -49,9 +55,11 @@ import androidx.compose.ui.unit.dp
 import com.appswithlove.floaat.FloatPeopleItem
 import com.appswithlove.ui.components.PrimaryButton
 import com.appswithlove.ui.feature.snackbar.SnackbarPublisher
+import com.appswithlove.ui.feature.update.LatestRelease
 import com.appswithlove.ui.feature.yourweek.YourWeek
 import com.appswithlove.ui.setup.SetupForm
 import com.appswithlove.ui.theme.FloaterTheme
+import com.appswithlove.ui.utils.openInBrowser
 import com.appswithlove.version
 import com.google.accompanist.flowlayout.FlowRow
 import com.vanpra.composematerialdialogs.DesktopWindowPosition
@@ -59,6 +67,7 @@ import com.vanpra.composematerialdialogs.MaterialDialog
 import com.vanpra.composematerialdialogs.MaterialDialogProperties
 import com.vanpra.composematerialdialogs.datetime.date.datepicker
 import com.vanpra.composematerialdialogs.rememberMaterialDialogState
+import java.net.URI
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
@@ -120,38 +129,74 @@ private fun MainContent(
 
     Scaffold(modifier = modifier) {
         Box {
-            Column(
-                modifier = Modifier.verticalScroll(scrollState).padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                when {
-                    state.isValid -> {
-                        Welcome(syncProjects, removeProjects)
-                        AddTime(
-                            addTimeEntries = addTimeEntries,
-                            missingEntryDates = state.missingEntryDates
-                        )
-                        Divider()
-                        AnimatedVisibility(state.isValid) {
-                            YourWeek(state, loadLastWeek, startTimer)
+            Column(Modifier.verticalScroll(scrollState)) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    when {
+                        state.isValid -> {
+                            LastRelease(state.latestRelease)
+                            Welcome(syncProjects, removeProjects)
+                            AddTime(
+                                addTimeEntries = addTimeEntries,
+                                missingEntryDates = state.missingEntryDates
+                            )
+                            Divider()
+                            AnimatedVisibility(state.isValid) {
+                                YourWeek(state, loadLastWeek, startTimer)
+                            }
+                            Logs(
+                                list = state.logs,
+                                clearLogs = clearLogs,
+                                modifier = Modifier
+                            )
                         }
-                        Logs(
-                            list = state.logs,
-                            clearLogs = clearLogs,
-                            modifier = Modifier
-                        )
-                    }
-                    state.loading -> {
-                        Loading()
-                    }
-                    else -> {
-                        SetupForm(state, save)
-                    }
-                }
-                Version()
-            }
 
+                        state.loading -> {
+                            Loading()
+                        }
+
+                        else -> {
+                            SetupForm(state, save)
+                        }
+                    }
+                    Version()
+                }
+
+            }
             SnackbarPublisher(Modifier.align(Alignment.BottomCenter))
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterialApi::class)
+@Composable
+fun LastRelease(lastRelease: LatestRelease?) {
+    if (lastRelease != null) {
+        Card(
+            onClick = {
+                openInBrowser(URI.create(lastRelease.url))
+            },
+            modifier = Modifier.fillMaxWidth(),
+            backgroundColor = MaterialTheme.colors.surface,
+            elevation = 10.dp
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+            ) {
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(text = "Update available! ✨", style = MaterialTheme.typography.subtitle2)
+                    Text(text = lastRelease.tag_name, style = MaterialTheme.typography.body2)
+                }
+                Icon(
+                    imageVector = Icons.Rounded.ArrowForward, contentDescription = null,
+                    modifier = Modifier.size(20.dp).alpha(0.2f)
+                )
+            }
         }
     }
 }
@@ -215,7 +260,11 @@ private fun AddTime(addTimeEntries: (LocalDate?) -> Unit, missingEntryDates: Lis
         }
 
         Column {
-            FlowRow(modifier = Modifier.fillMaxWidth(), mainAxisSpacing = 8.dp, crossAxisSpacing = 8.dp) {
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                mainAxisSpacing = 8.dp,
+                crossAxisSpacing = 8.dp
+            ) {
                 OutlinedButton(
                     onClick = { dialogState.show() },
                     contentPadding = PaddingValues(8.dp),

@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "com.appswithlove"
-version = "1.3.1"
+version = "1.3.2"
 
 repositories {
     google()
@@ -48,7 +48,7 @@ compose.desktop {
             modules("jdk.unsupported")
             targetFormats(TargetFormat.Dmg, TargetFormat.Exe)
             packageName = "Toggl2Float"
-            packageVersion = "1.3.1"
+            packageVersion = "1.3.2"
             macOS {
                 iconFile.set(project.file("icon.icns"))
                 bundleID = "com.appswithlove.toggl2float"

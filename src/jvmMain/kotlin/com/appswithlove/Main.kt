@@ -95,7 +95,6 @@ fun main() = application {
         }) {
         App(viewModel)
         FloaterTheme {
-
             if (showResetDialog.value) {
                 AlertDialog(
                     onDismissRequest = { showResetDialog.value = false },
@@ -121,7 +120,7 @@ fun main() = application {
     }
 }
 
-val version = "1.3.1" // todo: replace with bundle version
+val version = "1.3.2" // todo: replace with bundle version
 
 val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
 val jsonNoDefaults = Json { ignoreUnknownKeys = true }

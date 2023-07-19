@@ -11,6 +11,7 @@ import com.appswithlove.toggl.TogglProjectCreate
 import com.appswithlove.toggl.TogglRepo
 import com.appswithlove.toggl.TogglWorkspaceItem
 import com.appswithlove.ui.feature.snackbar.SnackbarStateHolder
+import com.appswithlove.ui.feature.update.GithubRepo
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -34,6 +35,7 @@ class MainViewModel {
     private val float = FloatRepo(dataStore)
     private val toggl = TogglRepo(dataStore)
     private var initDone: Boolean = false
+    private val github = GithubRepo()
 
     private val loadingCounter = MutableStateFlow(0)
     private val _state = MutableStateFlow(MainState(loading = true))
@@ -56,9 +58,15 @@ class MainViewModel {
                     getLastEntry()
                     getMissingEntries()
                     getWeeklyOverview()
+                    checkLastRelease()
                 }
             }
         }
+    }
+
+    private suspend fun checkLastRelease() {
+        val lastRelease = github.hasNewRelease()
+        _state.update { it.copy(latestRelease = lastRelease) }
     }
 
     private fun getMissingEntries() {

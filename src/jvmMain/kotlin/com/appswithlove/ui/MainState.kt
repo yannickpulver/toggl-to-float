@@ -1,6 +1,7 @@
 package com.appswithlove.ui
 
 import com.appswithlove.floaat.*
+import com.appswithlove.ui.feature.update.LatestRelease
 import java.time.LocalDate
 
 data class MainState(
@@ -12,7 +13,8 @@ data class MainState(
     val loading: Boolean = false,
     val lastEntryDate: LocalDate? = null,
     val weeklyOverview: Map<FloatProject?, List<FloatOverview>> = emptyMap(),
-    val missingEntryDates: List<LocalDate> = emptyList()
+    val missingEntryDates: List<LocalDate> = emptyList(),
+    val latestRelease: LatestRelease? = null
 ) {
     val isValid get() = !togglApiKey.isNullOrEmpty() && !floatApiKey.isNullOrEmpty() && peopleId != null && peopleId != -1
 
