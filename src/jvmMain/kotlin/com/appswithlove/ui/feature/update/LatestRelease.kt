@@ -15,7 +15,7 @@ data class LatestRelease(
     @SerialName("tag_name") val tag_name: String,
     @SerialName("html_url") val url: String
 ) {
-    val name = tag_name.drop(1)
+    val name get() = tag_name.drop(1)
 }
 
 class GithubRepo() {
