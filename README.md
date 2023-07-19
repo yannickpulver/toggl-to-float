@@ -13,4 +13,4 @@ Handy app to transfer Toggl times to Float.
    - Get the Float API token (has to be Admin token, as Float currently does not support User tokens)
    - Get the Toggl API token
 
-![Toggl To Float](docs/t2f.png)
+![Toggl To Float](docs/t2f-sample.png)
