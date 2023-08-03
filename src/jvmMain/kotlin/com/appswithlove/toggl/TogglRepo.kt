@@ -2,24 +2,30 @@ package com.appswithlove.toggl
 
 import TimeEntry
 import TimeEntryUpdate
+import TimeEntryUpdateFull
 import androidx.compose.ui.graphics.Color
 import com.appswithlove.json
 import com.appswithlove.store.DataStore
 import com.appswithlove.ui.Logger
-import io.ktor.client.*
-import io.ktor.client.call.*
-import io.ktor.client.engine.cio.*
-import io.ktor.client.request.*
-import io.ktor.client.statement.*
-import io.ktor.http.*
-import kotlinx.datetime.Instant
-import kotlinx.serialization.Serializable
+import io.ktor.client.HttpClient
+import io.ktor.client.call.body
+import io.ktor.client.engine.cio.CIO
+import io.ktor.client.request.delete
+import io.ktor.client.request.get
+import io.ktor.client.request.header
+import io.ktor.client.request.post
+import io.ktor.client.request.put
+import io.ktor.client.request.setBody
+import io.ktor.client.statement.HttpResponse
+import io.ktor.client.statement.bodyAsText
+import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpStatusCode
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import java.time.LocalDate
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
-import java.util.*
+import java.util.Base64
 import kotlin.math.abs
 
 private val HttpResponse.isSuccess: Boolean
@@ -33,7 +39,8 @@ class TogglRepo constructor(private val dataStore: DataStore) {
         val apiKey = getTogglApiKey()
         val start = from.atStartOfDay().format(DateTimeFormatter.ISO_DATE)
         val end = to.plusDays(1).atStartOfDay().format(DateTimeFormatter.ISO_DATE)
-        val timeEntriesApi = "https://api.track.toggl.com/api/v9/me/time_entries?start_date=$start&end_date=$end"
+        val timeEntriesApi =
+            "https://api.track.toggl.com/api/v9/me/time_entries?start_date=$start&end_date=$end"
         val response = getRequest(apiKey, timeEntriesApi)
         return json.decodeFromString(response.body())
     }
@@ -48,13 +55,14 @@ class TogglRepo constructor(private val dataStore: DataStore) {
         val apiKey = getTogglApiKey()
         val projectsApi = "https://api.track.toggl.com/api/v9/me/projects"
         val response = getRequest(apiKey, projectsApi)
-        return projects ?: json.decodeFromString<List<Project>>(response.body()).also { projects = it }
+        return projects ?: json.decodeFromString<List<Project>>(response.body())
+            .also { projects = it }
     }
-
 
     suspend fun getTogglProject(workspaceId: Int, id: Int): Project? {
         val apiKey = getTogglApiKey()
-        val projectsApi = "https://api.track.toggl.com/api/v9/workspaces/${workspaceId}/projects/$id"
+        val projectsApi =
+            "https://api.track.toggl.com/api/v9/workspaces/${workspaceId}/projects/$id"
         val response = getRequest(apiKey, projectsApi)
         return json.decodeFromString(response.body())
     }
@@ -83,17 +91,63 @@ class TogglRepo constructor(private val dataStore: DataStore) {
 
     suspend fun startTimer(workspaceId: Int, project: Project, task: String) {
         Logger.log("Trying to start timer...")
-        val togglApiKey = getTogglApiKey()
-        val api = "https://api.track.toggl.com/api/v9/workspaces/${workspaceId}/time_entries"
 
-        val timeEntry = TimeEntryCreate(project_id = project.id, tags = listOf(task), workspace_id = workspaceId)
-        val response = postRequest(api, json.encodeToString(timeEntry), togglApiKey)
-        if (response.isSuccess) {
-            Logger.log("✅Started timer for ${project.name}")
+        val currentEntry = getCurrentTimeEntryIfEmpty()
+        val togglApiKey = getTogglApiKey()
+
+        if (currentEntry == null) {
+            // Update current running
+            val api = "https://api.track.toggl.com/api/v9/workspaces/${workspaceId}/time_entries"
+
+            val timeEntry = TimeEntryCreate(
+                project_id = project.id,
+                tags = listOf(task),
+                workspace_id = workspaceId
+            )
+            val response = postRequest(api, json.encodeToString(timeEntry), togglApiKey)
+            if (response.isSuccess) {
+                Logger.log("✅Started timer for ${project.name}")
+            } else {
+                Logger.log("Error happened - ${response.bodyAsText()}")
+            }
         } else {
-            Logger.log("Error happened - ${response.bodyAsText()}")
+            val api = "https://api.track.toggl.com/api/v9/workspaces/${workspaceId}/time_entries/${currentEntry.id}"
+
+            val update = TimeEntryUpdateFull(
+                id = currentEntry.id,
+                project_id = project.id,
+                tags = listOf(task),
+                workspace_id = workspaceId,
+            )
+            val response = putRequest(api, json.encodeToString(update), togglApiKey)
+            if (response.isSuccess) {
+                Logger.log("✅ Updated current empty timer for ${project.name}")
+            } else {
+                Logger.log("Error happened - ${response.bodyAsText()}")
+            }
         }
+
         // call the api with the correct model
+    }
+
+    private suspend fun getCurrentTimeEntryIfEmpty(): TimeEntry? {
+        val currentEntry = getCurrentTimeEntry()
+        return if (currentEntry != null && currentEntry.description.isNullOrEmpty() && currentEntry.project_id == null && currentEntry.tags.isNullOrEmpty()) {
+            currentEntry
+        } else {
+            null
+        }
+    }
+
+    private suspend fun getCurrentTimeEntry(): TimeEntry? {
+        return try {
+            val apiKey = getTogglApiKey()
+            val projectsApi = "https://api.track.toggl.com/api/v9/me/time_entries/current"
+            val response = getRequest(apiKey, projectsApi)
+            json.decodeFromString(response.body())
+        } catch (e: Exception) {
+            null
+        }
     }
 
     suspend fun pushProjectsToToggl(
@@ -115,17 +169,21 @@ class TogglRepo constructor(private val dataStore: DataStore) {
         Logger.log("🎉 Synced new Float projects to Toggl!")
     }
 
-
     suspend fun putProjectsToToggl(
         workspaceId: Int,
         updatedProjects: List<TogglProjectCreate>
     ) {
         val togglApiKey = getTogglApiKey()
         updatedProjects.forEachIndexed { index, it ->
-            val api = "https://api.track.toggl.com/api/v9/workspaces/${workspaceId}/projects/${it.id}"
+            val api =
+                "https://api.track.toggl.com/api/v9/workspaces/${workspaceId}/projects/${it.id}"
             var projectResponse: HttpResponse? = null
             while (projectResponse?.status != HttpStatusCode.OK) {
-                projectResponse = putRequest(api, json.encodeToString(TogglProjectUpdate(it.name, it.color, it.active)), togglApiKey)
+                projectResponse = putRequest(
+                    api,
+                    json.encodeToString(TogglProjectUpdate(it.name, it.color, it.active)),
+                    togglApiKey
+                )
                 if (projectResponse.status != HttpStatusCode.OK && projectResponse.status != HttpStatusCode.TooManyRequests) {
                     Logger.log("Error happened - ${projectResponse.bodyAsText()}")
                 }
@@ -154,7 +212,6 @@ class TogglRepo constructor(private val dataStore: DataStore) {
         Logger.log("🎉 Fully cleaned the projects!")
     }
 
-
     suspend fun getTogglTags(): List<TogglTag> {
         val apiKey = getTogglApiKey()
         val projectsApi = "https://api.track.toggl.com/api/v9/me/tags"
@@ -171,7 +228,11 @@ class TogglRepo constructor(private val dataStore: DataStore) {
         newTags.forEachIndexed { index, it ->
             var projectResponse: HttpResponse? = null
             while (projectResponse?.status != HttpStatusCode.OK) {
-                projectResponse = postRequest(api, json.encodeToString(TogglTagCreate(workspaceId, it)), togglApiKey)
+                projectResponse = postRequest(
+                    api,
+                    json.encodeToString(TogglTagCreate(workspaceId, it)),
+                    togglApiKey
+                )
                 if (projectResponse.status != HttpStatusCode.OK && projectResponse.status != HttpStatusCode.TooManyRequests) {
                     Logger.log("Error happened - $it - ${projectResponse.bodyAsText()}")
                 }
@@ -181,14 +242,14 @@ class TogglRepo constructor(private val dataStore: DataStore) {
         Logger.log("🎉 Synced new Float tags to Toggl!")
     }
 
-
     suspend fun putTimeEntries(
         workspaceId: Int,
         updatesTimeEntries: List<Pair<Long, TimeEntryUpdate>>
     ) {
         val togglApiKey = getTogglApiKey()
         updatesTimeEntries.forEachIndexed { index, (id, updateJson) ->
-            val api = "https://api.track.toggl.com/api/v9/workspaces/${workspaceId}/time_entries/${id}"
+            val api =
+                "https://api.track.toggl.com/api/v9/workspaces/${workspaceId}/time_entries/${id}"
             var projectResponse: HttpResponse? = null
             while (projectResponse?.status != HttpStatusCode.OK) {
                 projectResponse = putRequest(api, json.encodeToString(updateJson), togglApiKey)
@@ -224,7 +285,6 @@ class TogglRepo constructor(private val dataStore: DataStore) {
         Logger.log("🎉 Your Float colors are now synced to Toggl!")
     }
 
-
     private suspend fun deleteRequest(
         togglApiKey: String,
         url: String
@@ -238,7 +298,6 @@ class TogglRepo constructor(private val dataStore: DataStore) {
         return response
     }
 
-
     private suspend fun getRequest(
         togglApiKey: String,
         url: String
@@ -251,7 +310,6 @@ class TogglRepo constructor(private val dataStore: DataStore) {
         }
         return response
     }
-
 
     private suspend fun postRequest(url: String, data: String, togglApiKey: String): HttpResponse {
         val client = HttpClient(CIO)
@@ -312,5 +370,4 @@ class TogglRepo constructor(private val dataStore: DataStore) {
     private fun getColorDistance(it: Color, color: Color): Float {
         return abs(it.red - color.red) + abs(it.blue - color.blue) + abs(it.green - color.green)
     }
-
 }

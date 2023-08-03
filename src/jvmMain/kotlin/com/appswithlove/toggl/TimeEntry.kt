@@ -30,3 +30,13 @@ data class TimeEntryUpdate(
     val project_id: Int,
 )
 
+
+@Serializable
+data class TimeEntryUpdateFull(
+    val id: Long,
+    val project_id: Int,
+    val tags: List<String>?,
+    val workspace_id: Int,
+    val tag_action: String = "add"
+    )
+
