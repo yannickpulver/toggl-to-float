@@ -1,5 +1,5 @@
 # Toggl 👉 Float
-Handy app to transfer Toggl times to Float.
+Handy desktop app to transfer Toggl times to Float. It lets you start toggl timers for the float tasks you have planned this week.
 
 ## Features
 
@@ -9,7 +9,8 @@ Handy app to transfer Toggl times to Float.
  
 ## Installation
 1. Download the latest release (either for Windows or Mac).
-2. Install the app and launch. You will be guided through getting the following:
+2. For Mac: You might have to run `sudo xattr -cr /Applications/Toggl2Float.app` because the app is currently unsigned
+3. Install the app and launch. You will be guided through getting the following:
    - Get the Float API token (has to be Admin token, as Float currently does not support User tokens)
    - Get the Toggl API token
 
