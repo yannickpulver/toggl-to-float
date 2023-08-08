@@ -23,9 +23,13 @@ class GithubRepo() {
         val client = HttpClient(CIO)
         val response =
             client.get("https://api.github.com/repos/yannickpulver/toggl-2-float-compose/releases/latest")
-        val release = json.decodeFromString<LatestRelease>(response.body())
-        client.close()
-        return release
+        return try {
+            val release = json.decodeFromString<LatestRelease>(response.body())
+            client.close()
+            release
+        } catch (e: Exception) {
+            null
+        }
     }
 
     suspend fun hasNewRelease(): LatestRelease? {

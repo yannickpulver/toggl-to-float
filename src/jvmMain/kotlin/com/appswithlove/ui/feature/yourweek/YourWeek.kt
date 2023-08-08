@@ -4,6 +4,7 @@ import androidx.compose.desktop.ui.tooling.preview.Preview
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.PointerMatcher
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,14 +13,23 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.onClick
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.Card
 import androidx.compose.material.Divider
+import androidx.compose.material.Icon
+import androidx.compose.material.IconButton
 import androidx.compose.material.MaterialTheme
+import androidx.compose.material.Surface
 import androidx.compose.material.Text
 import androidx.compose.material.contentColorFor
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -108,6 +118,9 @@ private fun ProjectItem(
 ) {
     val clipboardManager: ClipboardManager = LocalClipboardManager.current
     val scope = rememberCoroutineScope()
+
+    val showNotes = remember { mutableStateOf(false) }
+
     Box(
         modifier = Modifier
             .clip(MaterialTheme.shapes.medium)
@@ -119,63 +132,143 @@ private fun ProjectItem(
         ) {
             items.forEachIndexed { index, item ->
                 val color = item.phase?.rgbColor ?: project?.rgbColor ?: Color.Gray
-                Card(
-                    backgroundColor = color,
-                    contentColor = suitableContentColor(color),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable(
-                            onClick = {
-                                startTimer(
-                                    item.phase?.phase_id ?: item.project?.project_id ?: -1,
-                                    item.task.name
+                Column {
+
+                    Card(
+                        backgroundColor = color,
+                        contentColor = suitableContentColor(color),
+                        shape = if (showNotes.value) RoundedCornerShape(
+                            4.dp,
+                            4.dp,
+                            0.dp,
+                            0.dp
+                        ) else RoundedCornerShape(4.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(
+                                onClick = {
+                                    startTimer(
+                                        item.phase?.phase_id ?: item.project?.project_id ?: -1,
+                                        item.task.name
+                                    )
+                                })
+                            .onClick(
+                                matcher = PointerMatcher.mouse(PointerButton.Secondary),
+                                onClick = {
+                                    clipboardManager.setText(AnnotatedString(item.id.toString()))
+                                    SnackbarStateHolder.success("Copied ${item.id} to clipboard")
+                                }
+                            )
+                            .onClick(
+                                matcher = PointerMatcher.mouse(PointerButton.Tertiary),
+                                onClick = {
+                                    loadLastWeek(item.project?.project_id ?: -1)
+                                }
+                            ),
+                        elevation = 0.dp
+                    ) {
+                        Column(Modifier.padding(8.dp, 4.dp)) {
+                            Text(
+                                text = item.title,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(color),
+                                color = contentColorFor(color),
+                                style = MaterialTheme.typography.subtitle2,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            item.project?.name?.let {
+                                Text(it, style = MaterialTheme.typography.body2)
+                            }
+
+                            Row(
+                                Modifier.padding(top = 8.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Spacer(Modifier.weight(1f))
+
+                                if (item.task.notes.isNotEmpty()) {
+                                    IconButton(
+                                        modifier = Modifier.size(20.dp),
+                                        onClick = {
+                                            showNotes.value = !showNotes.value
+                                        }
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Info,
+                                            contentDescription = "Show notes",
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                }
+
+                                Text(
+                                    "[${item.id}]",
+                                    style = MaterialTheme.typography.caption.copy(fontWeight = FontWeight.Normal),
+                                    modifier = Modifier.alpha(0.8f),
                                 )
-                            })
-                        .onClick(
-                            matcher = PointerMatcher.mouse(PointerButton.Secondary),
-                            onClick = {
-                                clipboardManager.setText(AnnotatedString(item.id.toString()))
-                                SnackbarStateHolder.success("Copied ${item.id} to clipboard")
+                                Text(
+                                    "${item.weekHours}h",
+                                    style = MaterialTheme.typography.caption,
+                                    modifier = Modifier,
+                                    textAlign = TextAlign.End
+                                )
                             }
-                        )
-                        .onClick(
-                            matcher = PointerMatcher.mouse(PointerButton.Tertiary),
-                            onClick = {
-                                loadLastWeek(item.project?.project_id ?: -1)
-                            }
-                        ),
-                    elevation = 0.dp
-                ) {
-                    Column(Modifier.padding(8.dp, 4.dp)) {
-                        Text(
-                            text = item.title,
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(4.dp))
-                                .background(color),
-                            color = contentColorFor(color),
-                            style = MaterialTheme.typography.subtitle2,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        item.project?.name?.let {
-                            Text(it, style = MaterialTheme.typography.body2)
                         }
-                        Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Spacer(Modifier.weight(1f))
-                            Text(
-                                "[${item.id}]",
-                                style = MaterialTheme.typography.caption.copy(fontWeight = FontWeight.Normal),
-                                modifier = Modifier.alpha(0.8f),
+                    }
+                    if (showNotes.value) {
+                        Surface(
+                            Modifier.border(
+                                1.dp,
+                                MaterialTheme.colors.onSurface.copy(0.1f),
+                                RoundedCornerShape(0.dp, 0.dp, 4.dp, 4.dp)
+                            ).fillMaxWidth()
+                                .onClick(
+                                matcher = PointerMatcher.mouse(PointerButton.Secondary),
+                                onClick = {
+                                    clipboardManager.setText(AnnotatedString(item.task.notes))
+                                    SnackbarStateHolder.success("Copied notes to clipboard")
+                                }
                             )
-                            Text(
-                                "${item.weekHours}h",
-                                style = MaterialTheme.typography.caption,
-                                modifier = Modifier,
-                                textAlign = TextAlign.End
-                            )
+                        ) {
+                            // SelectionContainer {
+                            Column(
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
+                                modifier = Modifier.padding(8.dp)
+                            ) {
+                                Row {
+
+                                    Text(
+                                        "Notes",
+                                        style = MaterialTheme.typography.caption,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    // copy to clipboard
+                                    IconButton(
+                                        modifier = Modifier.size(20.dp),
+                                        onClick = {
+                                            clipboardManager.setText(AnnotatedString(item.task.notes))
+                                            SnackbarStateHolder.success("Copied notes to clipboard")
+                                        }
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.ContentCopy,
+                                            contentDescription = "Copy notes to clipboard",
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                }
+                                LinkifiedText(
+                                    text = item.task.notes,
+                                )
+                            }
+                            // }
                         }
                     }
                 }
+
             }
         }
     }
@@ -220,3 +313,4 @@ fun suitableContentColor(color: Color): Color {
     val luminance = calculateLuminance(color)
     return if (luminance > 0.35f) Color.Black else Color.White
 }
+

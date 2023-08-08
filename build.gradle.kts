@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "com.appswithlove"
-version = "1.3.4"
+version = "1.3.5"
 
 repositories {
     google()
@@ -34,6 +34,7 @@ kotlin {
                 implementation("ca.gosyer:compose-material-dialogs-datetime:0.8.0")
                 implementation("ca.gosyer:accompanist-flowlayout:0.25.2")
                 implementation("com.bybutter.compose:compose-jetbrains-expui-theme:2.1.0")
+                implementation("org.jetbrains.compose.material:material-icons-extended-desktop:${extra["compose.version"]}")
             }
         }
         val jvmTest by getting
@@ -48,7 +49,7 @@ compose.desktop {
             modules("jdk.unsupported")
             targetFormats(TargetFormat.Dmg, TargetFormat.Exe)
             packageName = "Toggl2Float"
-            packageVersion = "1.3.4"
+            packageVersion = "1.3.5"
             macOS {
                 iconFile.set(project.file("icon.icns"))
                 bundleID = "com.appswithlove.toggl2float"
