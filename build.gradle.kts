@@ -35,6 +35,9 @@ kotlin {
                 implementation("ca.gosyer:accompanist-flowlayout:0.25.2")
                 implementation("com.bybutter.compose:compose-jetbrains-expui-theme:2.1.0")
                 implementation("org.jetbrains.compose.material:material-icons-extended-desktop:${extra["compose.version"]}")
+
+                implementation("io.insert-koin:koin-compose:1.0.3")
+                implementation("io.insert-koin:koin-core:3.4.2")
             }
         }
         val jvmTest by getting

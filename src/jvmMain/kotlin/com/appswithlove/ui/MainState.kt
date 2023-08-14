@@ -16,7 +16,7 @@ data class MainState(
     val missingEntryDates: List<LocalDate> = emptyList(),
     val latestRelease: LatestRelease? = null
 ) {
-    val isValid get() = !togglApiKey.isNullOrEmpty() && !floatApiKey.isNullOrEmpty() && peopleId != null && peopleId != -1
+    val isValid = !togglApiKey.isNullOrEmpty() && !floatApiKey.isNullOrEmpty() && peopleId != null && peopleId != -1
 
     companion object {
         val Preview = MainState(weeklyOverview = mapOf(FloatProject.Preview to listOf(FloatOverview.Preview, FloatOverview.Preview), (FloatProject.Preview.copy(project_id = 2, color = "FCB9B2") to listOf(FloatOverview.Preview))))

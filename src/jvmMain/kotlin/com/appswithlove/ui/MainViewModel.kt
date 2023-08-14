@@ -29,13 +29,14 @@ import java.util.Locale
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
 
-class MainViewModel {
+class MainViewModel constructor(
+    private val dataStore: DataStore,
+    private val floatRepo: FloatRepo,
+    private val togglRepo: TogglRepo,
+    private val githubRepo: GithubRepo
+) {
 
-    private val dataStore = DataStore()
-    private val float = FloatRepo(dataStore)
-    private val toggl = TogglRepo(dataStore)
     private var initDone: Boolean = false
-    private val github = GithubRepo()
 
     private val loadingCounter = MutableStateFlow(0)
     private val _state = MutableStateFlow(MainState(loading = true))
@@ -55,17 +56,21 @@ class MainViewModel {
             _state.collectLatest {
                 if (it.isValid && !initDone) {
                     initDone = true
-                    getLastEntry()
-                    getMissingEntries()
-                    getWeeklyOverview()
-                    checkLastRelease()
+                    loadData()
                 }
             }
         }
     }
 
+    private suspend fun loadData() {
+        getLastEntry()
+        getMissingEntries()
+        getWeeklyOverview()
+        checkLastRelease()
+    }
+
     private suspend fun checkLastRelease() {
-        val lastRelease = github.hasNewRelease()
+        val lastRelease = githubRepo.hasNewRelease()
         _state.update { it.copy(latestRelease = lastRelease) }
     }
 
@@ -73,8 +78,8 @@ class MainViewModel {
         CoroutineScope(Dispatchers.IO).launch {
             val start = LocalDate.now().minusWeeks(2)
             val end = LocalDate.now()
-            val entries = float.getDatesWithoutTimeEntries(start = start, end = end.plusDays(1))
-            val togglEntries = toggl.getDatesWithTimeEntries(start, end.plusDays(1))
+            val entries = floatRepo.getDatesWithoutTimeEntries(start = start, end = end.plusDays(1))
+            val togglEntries = togglRepo.getDatesWithTimeEntries(start, end.plusDays(1))
             val missingEntries = entries.filter { togglEntries.contains(it) }
             _state.update { it.copy(missingEntryDates = missingEntries.sorted()) }
         }
@@ -83,7 +88,7 @@ class MainViewModel {
     private fun getWeeklyOverview() {
         CoroutineScope(Dispatchers.IO).launch {
             withLoading {
-                val overview = float.getWeeklyOverview()
+                val overview = floatRepo.getWeeklyOverview()
                 _state.update { it.copy(weeklyOverview = overview) }
             }
         }
@@ -97,7 +102,7 @@ class MainViewModel {
 
     private fun getLastEntry() {
         CoroutineScope(Dispatchers.IO).launch {
-            val entries = float.getFloatTimeEntries(
+            val entries = floatRepo.getFloatTimeEntries(
                 from = LocalDate.now().minusWeeks(2),
                 to = LocalDate.now()
             )
@@ -112,7 +117,7 @@ class MainViewModel {
             val lastMonday =
                 LocalDate.now().with(WeekFields.of(Locale.FRANCE).firstDayOfWeek).minusWeeks(1)
             val lastSunday = lastMonday.plusWeeks(1).minusDays(1)
-            val timeEntries = float.getFloatTimeEntries(lastMonday, lastSunday)
+            val timeEntries = floatRepo.getFloatTimeEntries(lastMonday, lastSunday)
             val projectEntries = timeEntries.filter { it.project_id == projectId }
             projectEntries.sortedBy { it.date }.groupBy { it.date }.forEach { (date, entries) ->
                 Logger.log(date)
@@ -158,7 +163,7 @@ class MainViewModel {
 
     fun archiveProjects() {
         CoroutineScope(Dispatchers.IO).launch {
-            toggl.getTogglProjects()
+            togglRepo.getTogglProjects()
         }
     }
 
@@ -198,7 +203,8 @@ class MainViewModel {
         refresh()
     }
 
-    private fun refresh() {
+    fun refresh() {
+        Logger.log("🔄 Refreshing...")
         CoroutineScope(Dispatchers.IO).launch {
             val store = dataStore.getStore
             _state.update {
@@ -206,19 +212,23 @@ class MainViewModel {
                     togglApiKey = store.togglKey,
                     floatApiKey = store.floatKey,
                     peopleId = store.floatClientId,
-                    people = if (store.shouldLoadPeople) float.getFloatPeople() else emptyList(),
+                    people = if (store.shouldLoadPeople) floatRepo.getFloatPeople() else emptyList(),
                     loading = false
                 )
+            }
+
+            if (initDone && _state.value.isValid) {
+                loadData()
             }
         }
     }
 
     private suspend fun fetchProjectsInt() {
-        val workspace = toggl.getWorkspaces() ?: throw Exception("Couldn't get Toggle Workspace")
+        val workspace = togglRepo.getWorkspaces() ?: throw Exception("Couldn't get Toggle Workspace")
 
         // projects
-        val floatProjects = float.getFloatProjects().map { it.asNumberList }.flatten()
-        val togglProjects = toggl.getTogglProjects()
+        val floatProjects = floatRepo.getFloatProjects().map { it.asNumberList }.flatten()
+        val togglProjects = togglRepo.getTogglProjects()
 
         val modifiedProjects =
             floatProjects.filter { floatProject -> togglProjects.any { it.projectIdNew == floatProject.id && (it.name != floatProject.name || it.active != floatProject.isActive) } }
@@ -244,21 +254,21 @@ class MainViewModel {
         if (newProjects.isNotEmpty()) {
             Logger.log("⬆️ Syncing new Float projects to Toggl — (${newProjects.size}) of ${floatProjects.size}")
             Logger.log(Logger.SPACER)
-            toggl.pushProjectsToToggl(workspace.id, newProjects)
+            togglRepo.pushProjectsToToggl(workspace.id, newProjects)
         }
         if (modifiedProjects.isNotEmpty()) {
             Logger.log("⬆️ Syncing modified Float projects to Toggl — (${newProjects.size}) of ${floatProjects.size}")
-            toggl.putProjectsToToggl(workspace.id, modifiedProjects)
+            togglRepo.putProjectsToToggl(workspace.id, modifiedProjects)
         }
 
         // tags
-        val togglTags = toggl.getTogglTags()
-        val floatTags = float.getFloatTaskNames()
+        val togglTags = togglRepo.getTogglTags()
+        val floatTags = floatRepo.getFloatTaskNames()
 
         val newTags = floatTags.filterNot { floatTag -> togglTags.any { it.name == floatTag } }
         if (newTags.isNotEmpty()) {
             Logger.log("⬆️ Syncing new Float tags to Toggl")
-            toggl.pushTagsToToggl(workspace.id, newTags)
+            togglRepo.pushTagsToToggl(workspace.id, newTags)
         }
 
         // time entries
@@ -275,21 +285,21 @@ class MainViewModel {
     }
 
     suspend fun removeOldProjects() {
-        val workspace = toggl.getWorkspaces() ?: throw Exception("Couldn't get Toggle Workspace")
-        val togglProjects = toggl.getTogglProjects()
+        val workspace = togglRepo.getWorkspaces() ?: throw Exception("Couldn't get Toggle Workspace")
+        val togglProjects = togglRepo.getTogglProjects()
 
         val toremove = togglProjects.filter { it.projectId != null && it.projectIdNew == null }
-        toggl.deleteProjects(workspace.id, toremove.map { it.id })
+        togglRepo.deleteProjects(workspace.id, toremove.map { it.id })
     }
 
     suspend fun migrateTimeEntries(workspace: TogglWorkspaceItem) {
         Logger.log("🐧 Checking for migrations...")
         delay(2000)
         // Modify entries
-        val entries = toggl.getTogglTimeEntries(LocalDate.now().minusMonths(2), LocalDate.now())
+        val entries = togglRepo.getTogglTimeEntries(LocalDate.now().minusMonths(2), LocalDate.now())
         val modifiedEntries = mutableListOf<Pair<Long, TimeEntryUpdate>>()
 
-        val projects = toggl.getTogglProjects()
+        val projects = togglRepo.getTogglProjects()
 
         entries.forEachIndexed { index, it ->
             val project = it.project_id?.let { id -> projects.find { it.id == id } }
@@ -301,25 +311,25 @@ class MainViewModel {
                 }
             }
         }
-        toggl.putTimeEntries(workspace.id, modifiedEntries)
+        togglRepo.putTimeEntries(workspace.id, modifiedEntries)
     }
 
     fun startTimer(id: Int, tag: String) {
 
         CoroutineScope(Dispatchers.IO).launch {
             val workspace =
-                toggl.getWorkspaces() ?: throw Exception("Couldn't get Toggle Workspace")
+                togglRepo.getWorkspaces() ?: throw Exception("Couldn't get Toggle Workspace")
             // get id of project or phase
-            val project = toggl.getTogglProjects().first { it.name.contains(id.toString()) }
+            val project = togglRepo.getTogglProjects().first { it.name.contains(id.toString()) }
 
             // find toggl project that contains this id
-            toggl.startTimer(workspace.id, project, tag)
+            togglRepo.startTimer(workspace.id, project, tag)
         }
     }
 
     private fun floatColorToTogglColor(colorString: String?): String? {
         val color = try {
-            hex2Rgb(colorString)?.let { toggl.getClosestTogglColor(it) }
+            hex2Rgb(colorString)?.let { togglRepo.getClosestTogglColor(it) }
         } catch (exception: Exception) {
             null
         }
@@ -327,17 +337,17 @@ class MainViewModel {
     }
 
     private suspend fun addTimeEntries(date: LocalDate): Boolean {
-        val timeEntries = toggl.getTogglTimeEntries(date, date)
+        val timeEntries = togglRepo.getTogglTimeEntries(date, date)
         Logger.log("⏱ Found ${timeEntries.size} time entries for $date on Toggl!")
         if (timeEntries.isEmpty()) {
             Logger.log("Noting to do here. Do you even work?")
             return true
         }
-        val projects = toggl.getTogglProjects()
+        val projects = togglRepo.getTogglProjects()
         val pairs =
             timeEntries.map { time -> time to projects.firstOrNull { it.id == time.project_id } }
 
-        val timeEntriesOnDate = float.getFloatTimeEntries(date, date)
+        val timeEntriesOnDate = floatRepo.getFloatTimeEntries(date, date)
         if (timeEntriesOnDate.isNotEmpty()) {
             Logger.log(Logger.SPACER)
             Logger.err("⚠️ There are already existing time entries for $date. Please remove them and try again.")
@@ -359,7 +369,7 @@ class MainViewModel {
             )
         }
 
-        float.pushToFloat(date, data)
+        floatRepo.pushToFloat(date, data)
         return true
     }
 }

@@ -27,6 +27,7 @@ import androidx.compose.material.contentColorFor
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Link
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -52,6 +53,9 @@ import com.appswithlove.ui.MainState
 import com.appswithlove.ui.feature.snackbar.SnackbarStateHolder
 import com.appswithlove.ui.theme.FloaterTheme
 import com.appswithlove.ui.totalHours
+import com.appswithlove.ui.utils.openInBrowser
+import java.net.URI
+import java.net.URLEncoder
 import kotlin.math.pow
 
 @Composable
@@ -199,10 +203,23 @@ private fun ProjectItem(
                                         Icon(
                                             imageVector = Icons.Default.Info,
                                             contentDescription = "Show notes",
-                                            modifier = Modifier.size(18.dp)
+                                            modifier = Modifier.size(16.dp)
                                         )
                                     }
                                 }
+
+                                 IconButton(
+                                     modifier = Modifier.size(20.dp),
+                                     onClick = {
+                                         openInBrowser(URI("https://app.float.com/#task-${item.task.task_id}"))
+                                     }
+                                 ) {
+                                     Icon(
+                                         imageVector = Icons.Default.Link,
+                                         contentDescription = "Open Url",
+                                         modifier = Modifier.size(16.dp)
+                                     )
+                                 }
 
                                 Text(
                                     "[${item.id}]",
@@ -226,12 +243,12 @@ private fun ProjectItem(
                                 RoundedCornerShape(0.dp, 0.dp, 4.dp, 4.dp)
                             ).fillMaxWidth()
                                 .onClick(
-                                matcher = PointerMatcher.mouse(PointerButton.Secondary),
-                                onClick = {
-                                    clipboardManager.setText(AnnotatedString(item.task.notes))
-                                    SnackbarStateHolder.success("Copied notes to clipboard")
-                                }
-                            )
+                                    matcher = PointerMatcher.mouse(PointerButton.Secondary),
+                                    onClick = {
+                                        clipboardManager.setText(AnnotatedString(item.task.notes))
+                                        SnackbarStateHolder.success("Copied notes to clipboard")
+                                    }
+                                )
                         ) {
                             // SelectionContainer {
                             Column(

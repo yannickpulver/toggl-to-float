@@ -18,7 +18,8 @@ data class LatestRelease(
     val name get() = tag_name.drop(1)
 }
 
-class GithubRepo() {
+class GithubRepo {
+
     private suspend fun fetchLatestVersion(): LatestRelease? {
         val client = HttpClient(CIO)
         val response =

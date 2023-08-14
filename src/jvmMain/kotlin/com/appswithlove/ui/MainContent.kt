@@ -33,9 +33,7 @@ import androidx.compose.material.Text
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.rounded.ArrowForward
-import androidx.compose.material.icons.rounded.Build
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -81,7 +79,6 @@ fun MainContent(viewModel: MainViewModel) {
     MainContent(
         state = state.value,
         syncProjects = viewModel::fetchProjects,
-        removeProjects = viewModel::removeProjects,
         addTimeEntries = viewModel::addTimeEntries,
         save = viewModel::save,
         loadLastWeek = viewModel::loadTimeLastWeek,
@@ -117,7 +114,6 @@ fun Version(modifier: Modifier = Modifier) {
 private fun MainContent(
     state: MainState,
     syncProjects: () -> Unit,
-    removeProjects: () -> Unit,
     addTimeEntries: (LocalDate?) -> Unit,
     save: (String?, String?, FloatPeopleItem?) -> Unit,
     loadLastWeek: (Int) -> Unit,
@@ -137,7 +133,7 @@ private fun MainContent(
                     when {
                         state.isValid -> {
                             LastRelease(state.latestRelease)
-                            Welcome(syncProjects, removeProjects)
+                            Welcome(syncProjects)
                             AddTime(
                                 addTimeEntries = addTimeEntries,
                                 missingEntryDates = state.missingEntryDates
@@ -202,7 +198,7 @@ fun LastRelease(lastRelease: LatestRelease?) {
 }
 
 @Composable
-private fun Welcome(syncProjects: () -> Unit, removeProjects: () -> Unit) {
+private fun Welcome(syncProjects: () -> Unit) {
     Column {
 
         Row(
@@ -333,7 +329,7 @@ private fun Logs(
 @Composable
 fun EmptyPreview() {
     FloaterTheme {
-        MainContent(MainState(), {}, {}, {}, { _, _, _ -> }, {}, {}, Modifier, { _, _ -> })
+        MainContent(MainState(), {}, {}, { _, _, _ -> }, {}, {}, Modifier, { _, _ -> })
     }
 }
 
@@ -343,7 +339,6 @@ fun ValidPreview() {
     FloaterTheme {
         MainContent(
             MainState(floatApiKey = "sdljf", togglApiKey = "sdf", peopleId = 123),
-            {},
             {},
             {},
             { _, _, _ -> },
