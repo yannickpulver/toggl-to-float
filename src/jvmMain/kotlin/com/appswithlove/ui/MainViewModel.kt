@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.temporal.WeekFields
 import java.util.Locale
 import kotlin.time.DurationUnit
@@ -36,12 +37,14 @@ class MainViewModel constructor(
     private val githubRepo: GithubRepo
 ) {
 
-    private var initDone: Boolean = false
+    private var _initDone: Boolean = false
+    private var _lastRefresh: LocalDateTime? = null
 
-    private val loadingCounter = MutableStateFlow(0)
+    private val _loadingCounter = MutableStateFlow(0)
+
     private val _state = MutableStateFlow(MainState(loading = true))
     val state: StateFlow<MainState> =
-        combine(_state, Logger.logs, loadingCounter) { state, logs, loadingCounter ->
+        combine(_state, Logger.logs, _loadingCounter) { state, logs, loadingCounter ->
             state.copy(logs = logs, loading = loadingCounter > 0)
         }.stateIn(
             scope = CoroutineScope(Dispatchers.Default),
@@ -50,12 +53,12 @@ class MainViewModel constructor(
         )
 
     init {
-        refresh()
+        refresh(true)
 
         CoroutineScope(Dispatchers.IO).launch {
             _state.collectLatest {
-                if (it.isValid && !initDone) {
-                    initDone = true
+                if (it.isValid && !_initDone) {
+                    _initDone = true
                     loadData()
                 }
             }
@@ -95,9 +98,9 @@ class MainViewModel constructor(
     }
 
     private suspend fun withLoading(block: suspend () -> Unit) {
-        loadingCounter.update { it + 1 }
+        _loadingCounter.update { it + 1 }
         block()
-        loadingCounter.update { it - 1 }
+        _loadingCounter.update { it - 1 }
     }
 
     private fun getLastEntry() {
@@ -149,7 +152,7 @@ class MainViewModel constructor(
     fun reset() {
         Logger.clear()
         dataStore.clear()
-        refresh()
+        refresh(true)
         _state.update { it.copy(togglApiKey = null, floatApiKey = null, peopleId = null) }
     }
 
@@ -200,11 +203,14 @@ class MainViewModel constructor(
         floatApiKey?.let { dataStore.setFloatApiKey(floatApiKey) }
         peopleItem?.let { dataStore.setFloatClientId(peopleItem.people_id) }
 
-        refresh()
+        refresh(true)
     }
 
-    fun refresh() {
-        Logger.log("🔄 Refreshing...")
+    fun refresh(force: Boolean = false) {
+        if (!force && _lastRefresh?.plusMinutes(3)?.isAfter(LocalDateTime.now()) == true) {
+            return
+        }
+
         CoroutineScope(Dispatchers.IO).launch {
             val store = dataStore.getStore
             _state.update {
@@ -217,14 +223,16 @@ class MainViewModel constructor(
                 )
             }
 
-            if (initDone && _state.value.isValid) {
+            if (_initDone && _state.value.isValid) {
                 loadData()
             }
+            _lastRefresh = LocalDateTime.now()
         }
     }
 
     private suspend fun fetchProjectsInt() {
-        val workspace = togglRepo.getWorkspaces() ?: throw Exception("Couldn't get Toggle Workspace")
+        val workspace =
+            togglRepo.getWorkspaces() ?: throw Exception("Couldn't get Toggle Workspace")
 
         // projects
         val floatProjects = floatRepo.getFloatProjects().map { it.asNumberList }.flatten()
@@ -285,7 +293,8 @@ class MainViewModel constructor(
     }
 
     suspend fun removeOldProjects() {
-        val workspace = togglRepo.getWorkspaces() ?: throw Exception("Couldn't get Toggle Workspace")
+        val workspace =
+            togglRepo.getWorkspaces() ?: throw Exception("Couldn't get Toggle Workspace")
         val togglProjects = togglRepo.getTogglProjects()
 
         val toremove = togglProjects.filter { it.projectId != null && it.projectIdNew == null }

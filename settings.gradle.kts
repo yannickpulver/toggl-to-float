@@ -14,5 +14,5 @@ pluginManagement {
     }
 }
 
-rootProject.name = "toggl-to-float-compose"
+rootProject.name = "toggl-to-float"
 

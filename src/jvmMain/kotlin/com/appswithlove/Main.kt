@@ -37,19 +37,24 @@ import io.kanro.compose.jetbrains.expui.control.Tooltip
 import io.kanro.compose.jetbrains.expui.theme.DarkTheme
 import io.kanro.compose.jetbrains.expui.theme.LightTheme
 import io.kanro.compose.jetbrains.expui.window.JBWindow
+import io.kanro.compose.jetbrains.expui.window.LocalWindow
 import kotlinx.serialization.json.Json
 import org.koin.compose.KoinApplication
 import org.koin.compose.koinInject
 
 @Composable
 @Preview
-fun App(viewModel: MainViewModel, isMinimized: Boolean) {
+fun App(viewModel: MainViewModel) {
 
-    LaunchedEffect(isMinimized) {
-        // Refresh whenever returned from minimized state
-        if (!isMinimized) {
-            viewModel.refresh()
-        }
+    val window = LocalWindow.current
+    LaunchedEffect(Unit) {
+        window.addWindowFocusListener(object : java.awt.event.WindowFocusListener {
+            override fun windowGainedFocus(e: java.awt.event.WindowEvent?) {
+                viewModel.refresh()
+            }
+
+            override fun windowLostFocus(e: java.awt.event.WindowEvent?) {}
+        })
     }
 
     MainContent(viewModel)
@@ -71,6 +76,7 @@ fun main() = application {
         val windowState = rememberWindowState(size = DpSize(400.dp, 700.dp))
 
         val showResetDialog = remember { mutableStateOf(false) }
+
 
         JBWindow(
             state = windowState,
@@ -107,7 +113,7 @@ fun main() = application {
                 }
             }) {
             FloaterTheme {
-                App(viewModel, windowState.isMinimized)
+                App(viewModel)
 
                 if (showResetDialog.value) {
                     AlertDialog(
