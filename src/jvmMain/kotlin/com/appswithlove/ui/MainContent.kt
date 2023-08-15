@@ -172,7 +172,7 @@ fun LastRelease(lastRelease: LatestRelease?) {
     if (lastRelease != null) {
         Card(
             onClick = {
-                openInBrowser(URI.create(lastRelease.url))
+                openInBrowser(URI.create(lastRelease.downloadUrl))
             },
             modifier = Modifier.fillMaxWidth(),
             backgroundColor = MaterialTheme.colors.surface,
@@ -186,7 +186,7 @@ fun LastRelease(lastRelease: LatestRelease?) {
 
                 Column(modifier = Modifier.weight(1f)) {
                     Text(text = "Update available! ✨", style = MaterialTheme.typography.subtitle2)
-                    Text(text = lastRelease.tag_name, style = MaterialTheme.typography.body2)
+                    Text(text = lastRelease.tagName, style = MaterialTheme.typography.body2)
                 }
                 Icon(
                     imageVector = Icons.Rounded.ArrowForward, contentDescription = null,
