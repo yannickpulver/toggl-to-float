@@ -3,7 +3,7 @@ package com.appswithlove.toggl
 @kotlinx.serialization.Serializable
 data class Project(
     val active: Boolean,
-    val actual_hours: Int,
+    val actual_hours: Int?,
     val at: String,
     val cid: Int?,
     val client_id: Int?,
