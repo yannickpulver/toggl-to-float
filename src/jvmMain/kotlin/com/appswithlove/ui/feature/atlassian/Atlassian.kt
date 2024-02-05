@@ -33,15 +33,23 @@ import java.time.LocalDate
 @Composable
 fun AddTimeAtlassian(modifier: Modifier = Modifier, viewModel: AtlassianViewModel = koinInject()) {
     val state = viewModel.state.collectAsState()
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(16.dp)) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
             "Jira Worklog",
             style = MaterialTheme.typography.h4,
         )
 
         if (state.value.incomplete) {
+            Text(
+                "Add your jira credentials / info to track your worklog.",
+                style = MaterialTheme.typography.body2
+            )
             Form(state, viewModel)
         } else {
+            Text(
+                "All worklogs starting with an issue id (e.g. '${state.value.prefix}-123') will be added to Jira.",
+                style = MaterialTheme.typography.body2
+            )
             AddAtlassianTimeEntries(viewModel::addTimeEntries)
         }
     }

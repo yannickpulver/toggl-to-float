@@ -33,7 +33,8 @@ class AtlassianViewModel(
                 it.copy(
                     email = this.atlassianEmail,
                     apiKey = atlassianApiKey,
-                    host = atlassianHost
+                    host = atlassianHost,
+                    prefix = atlassianPrefix
                 )
             }
         }
@@ -81,11 +82,12 @@ class AtlassianViewModel(
         val email: String?,
         val apiKey: String?,
         val host: String?,
+        val prefix: String?
     ) {
 
         val incomplete get() = email.isNullOrBlank() || apiKey.isNullOrBlank() || host.isNullOrBlank()
 
         companion object {
-            val EMPTY = AtlassianState("", "", "")
+            val EMPTY = AtlassianState("", "", "", "")
         }
     }

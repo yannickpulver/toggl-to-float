@@ -48,8 +48,6 @@ class AtlassianRepository(private val dataStore: DataStore) {
               "timeSpentSeconds": $timeSpentSeconds
             }
         """.trimIndent()
-
-        //Logger.log("Posting worklog to $url with data: $data")
         postRequest(url, data)
     }
 

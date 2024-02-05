@@ -93,7 +93,8 @@ fun YourWeekContent(
         }
         Text(
             "Click to start timer",
-            style = MaterialTheme.typography.body2
+            style = MaterialTheme.typography.body2,
+            modifier = Modifier.padding(top = 4.dp)
         )
         if (state.weeklyOverview.isNotEmpty()) {
             Column(

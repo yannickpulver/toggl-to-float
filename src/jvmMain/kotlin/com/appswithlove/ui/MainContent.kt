@@ -143,7 +143,9 @@ private fun MainContent(
                             AnimatedVisibility(state.isValid) {
                                 YourWeek(state, loadLastWeek, startTimer)
                             }
+                            Divider()
                             AddTimeAtlassian()
+                            Divider()
                             Logs(
                                 list = state.logs,
                                 clearLogs = clearLogs,

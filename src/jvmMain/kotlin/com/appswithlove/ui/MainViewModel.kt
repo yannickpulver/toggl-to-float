@@ -30,7 +30,7 @@ import java.util.Locale
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
 
-class MainViewModel constructor(
+class MainViewModel(
     private val dataStore: DataStore,
     private val floatRepo: FloatRepo,
     private val togglRepo: TogglRepo,
@@ -202,7 +202,6 @@ class MainViewModel constructor(
         togglApiKey?.let { dataStore.setTogglApiKey(togglApiKey) }
         floatApiKey?.let { dataStore.setFloatApiKey(floatApiKey) }
         peopleItem?.let { dataStore.setFloatClientId(peopleItem.people_id) }
-
         refresh(true)
     }
 
