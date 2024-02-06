@@ -48,6 +48,7 @@ jobs:
           APPSTORE_USERNAME: ${{ secrets.APPSTORE_USERNAME }}
           CERTS_REPO: ${{ secrets.CERTS_REPO }}
           GIT_AUTH: ${{ secrets.GIT_AUTH }}
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
 
       - name: Notarize
         run: bundle exec fastlane run notarize package:"build/compose/binaries/main-release/dmg/Toggl2Float-*.dmg" bundle_id:"com.appswithlove.toggl2float" api_key:"$APPSTORE_JSON" print_log:true
