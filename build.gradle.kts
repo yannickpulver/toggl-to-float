@@ -58,8 +58,9 @@ compose.desktop {
                 iconFile.set(project.file("icon.icns"))
                 bundleID = "com.appswithlove.toggl2float"
                 signing {
-                    sign.set(true)
-                    identity.set(System.getenv("APPSTORE_IDENTITY"))
+                    val id = System.getenv("APPSTORE_IDENTITY")
+                    sign.set(id != null)
+                    identity.set(id)
                 }
             }
             windows {

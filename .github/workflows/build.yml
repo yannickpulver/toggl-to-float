@@ -1,4 +1,4 @@
-name: Package Mac
+name: Package
 
 on:
   push:
