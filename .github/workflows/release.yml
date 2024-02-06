@@ -25,6 +25,12 @@ jobs:
           jdkFile: jbr-17.0.7.tar.gz
           cache: gradle
 
+      - name: Import signing certificate
+        uses: apple-actions/import-codesign-certs@v2
+        with:
+          p12-file-base64: ${{ secrets.SIGNING_CERTIFICATE_P12_DATA_MACOS }}
+          p12-password: ""
+
       - name: Build with Gradle
         run: ./gradlew packageReleaseDmg
         env:
