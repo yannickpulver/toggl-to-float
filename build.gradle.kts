@@ -57,6 +57,10 @@ compose.desktop {
             macOS {
                 iconFile.set(project.file("icon.icns"))
                 bundleID = "com.appswithlove.toggl2float"
+                signing {
+                    sign.set(true)
+                    identity.set(System.getenv("APPSTORE_IDENTITY"))
+                }
             }
             windows {
                 iconFile.set(project.file("icon.ico"))
