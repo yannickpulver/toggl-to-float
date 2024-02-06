@@ -25,6 +25,11 @@ jobs:
           jdkFile: jbr-17.0.7.tar.gz
           cache: gradle
 
+      - name: Install Fastlane
+        run: |
+          gem install bundler
+          bundle install
+
       - name: Import signing certificate
         uses: apple-actions/import-codesign-certs@v2
         with:
