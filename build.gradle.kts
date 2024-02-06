@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "com.appswithlove"
-version = "1.3.7"
+version = "1.4.0"
 
 repositories {
     google()
@@ -18,10 +18,11 @@ repositories {
 kotlin {
     jvm {
         compilations.all {
-            kotlinOptions.jvmTarget = "11"
+            kotlinOptions.jvmTarget = "17"
         }
         withJava()
     }
+    jvmToolchain(17)
     sourceSets {
         val jvmMain by getting {
             dependencies {
@@ -52,10 +53,15 @@ compose.desktop {
             modules("jdk.unsupported")
             targetFormats(TargetFormat.Dmg, TargetFormat.Exe)
             packageName = "Toggl2Float"
-            packageVersion = "1.3.7"
+            packageVersion = "1.4.0"
             macOS {
                 iconFile.set(project.file("icon.icns"))
                 bundleID = "com.appswithlove.toggl2float"
+                signing {
+                    val id = System.getenv("APPSTORE_IDENTITY")
+                    sign.set(id != null)
+                    identity.set(id)
+                }
             }
             windows {
                 iconFile.set(project.file("icon.ico"))

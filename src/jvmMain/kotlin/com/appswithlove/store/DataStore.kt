@@ -8,6 +8,10 @@ class DataStore {
     private val field_floatApiKey = "floatApiKey"
     private val field_floatClientId = "floatClientId"
     private val field_amountTimeEntries = "amountTimeEntries"
+    private val field_atlassianEmail = "atlassianEmail"
+    private val field_atlassianApiKey = "atlassianApiKey"
+    private val field_atlassianUrl = "atlassianUrl"
+    private val field_atlassianPrefix = "atlassianPrefix"
     private val preferences = Preferences.userNodeForPackage(javaClass)
 
     val getStore: Store
@@ -15,7 +19,11 @@ class DataStore {
             val togglApiKey = preferences[field_togglApiKey, ""]
             val floatApiKey = preferences[field_floatApiKey, ""]
             val floatClientId = preferences.getInt(field_floatClientId, -1)
-            return Store(togglApiKey, floatApiKey, floatClientId)
+            val atlassianEmail = preferences[field_atlassianEmail, ""]
+            val atlassianApiKey = preferences[field_atlassianApiKey, ""]
+            val atlassianUrl = preferences[field_atlassianUrl, ""]
+            val atlassianPrefix = preferences[field_atlassianPrefix, ""]
+            return Store(togglApiKey, floatApiKey, floatClientId, atlassianEmail, atlassianApiKey, atlassianUrl, atlassianPrefix)
         }
 
     fun setTogglApiKey(apiKey: String?) {
@@ -28,6 +36,22 @@ class DataStore {
 
     fun setFloatClientId(clientId: Int?) {
         preferences.putInt(field_floatClientId, clientId ?: -1)
+    }
+
+    fun setAtlassianEmail(email: String?) {
+        preferences.put(field_atlassianEmail, email.orEmpty())
+    }
+
+    fun setAtlassianApiKey(apiKey: String?) {
+        preferences.put(field_atlassianApiKey, apiKey.orEmpty())
+    }
+
+    fun setAtlassianHost(url: String?) {
+        preferences.put(field_atlassianUrl, url.orEmpty())
+    }
+
+    fun setAtlassianPrefix(prefix: String?) {
+        preferences.put(field_atlassianPrefix, prefix.orEmpty())
     }
 
     fun addAndGetTimeEntryCount(entriesUploaded: Int): Int {

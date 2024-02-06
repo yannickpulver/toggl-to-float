@@ -52,6 +52,7 @@ import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import com.appswithlove.floaat.FloatPeopleItem
 import com.appswithlove.ui.components.PrimaryButton
+import com.appswithlove.ui.feature.atlassian.AddTimeAtlassian
 import com.appswithlove.ui.feature.snackbar.SnackbarPublisher
 import com.appswithlove.ui.feature.update.LatestRelease
 import com.appswithlove.ui.feature.yourweek.YourWeek
@@ -142,6 +143,9 @@ private fun MainContent(
                             AnimatedVisibility(state.isValid) {
                                 YourWeek(state, loadLastWeek, startTimer)
                             }
+                            Divider()
+                            AddTimeAtlassian()
+                            Divider()
                             Logs(
                                 list = state.logs,
                                 clearLogs = clearLogs,

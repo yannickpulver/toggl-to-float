@@ -33,7 +33,7 @@ private val HttpResponse.isSuccess: Boolean
         return status == HttpStatusCode.OK || status == HttpStatusCode.Created
     }
 
-class TogglRepo constructor(private val dataStore: DataStore) {
+class TogglRepo(private val dataStore: DataStore) {
 
     suspend fun getTogglTimeEntries(from: LocalDate, to: LocalDate): List<TimeEntry> {
         val apiKey = getTogglApiKey()
@@ -80,11 +80,11 @@ class TogglRepo constructor(private val dataStore: DataStore) {
         return json.decodeFromString<List<TogglWorkspaceItem>>(response.body()).firstOrNull()
     }
 
-    private fun getTogglApiKey(renew: Boolean = false): String {
-        var key: String? = if (renew) null else dataStore.getStore.togglKey
-        while (key.isNullOrEmpty()) {
+    private fun getTogglApiKey(): String {
+        var key: String? = dataStore.getStore.togglKey
+        if (key.isNullOrEmpty()) {
             Logger.log("Please Reset T2R with the button on the bottom right.")
-            dataStore.setTogglApiKey(key)
+            throw Exception("Toggl API Key is missing")
         }
         return key
     }
