@@ -29,7 +29,7 @@ jobs:
         uses: apple-actions/import-codesign-certs@v2
         with:
           p12-file-base64: ${{ secrets.SIGNING_CERTIFICATE_P12_DATA_MACOS }}
-          p12-password: ""
+          p12-password: ${{ secrets.SIGNING_CERTIFICATE_PASSWORD_MACOS }}
 
       - name: Build with Gradle
         run: ./gradlew packageReleaseDmg
