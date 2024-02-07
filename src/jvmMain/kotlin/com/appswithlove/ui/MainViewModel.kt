@@ -30,7 +30,7 @@ import java.util.Locale
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
 
-class MainViewModel(
+class MainViewModel constructor(
     private val dataStore: DataStore,
     private val floatRepo: FloatRepo,
     private val togglRepo: TogglRepo,

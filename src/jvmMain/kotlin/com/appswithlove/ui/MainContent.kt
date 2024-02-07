@@ -51,7 +51,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import com.appswithlove.floaat.FloatPeopleItem
-import com.appswithlove.toggl_to_float.BuildConfig
 import com.appswithlove.ui.components.PrimaryButton
 import com.appswithlove.ui.feature.atlassian.AddTimeAtlassian
 import com.appswithlove.ui.feature.snackbar.SnackbarPublisher
@@ -105,7 +104,7 @@ fun MainContent(viewModel: MainViewModel) {
 @Composable
 fun Version(modifier: Modifier = Modifier) {
     Text(
-        "Version ${BuildConfig.APP_VERSION}",
+        "Version 1.4.0",
         modifier = modifier,
         style = MaterialTheme.typography.caption
     )

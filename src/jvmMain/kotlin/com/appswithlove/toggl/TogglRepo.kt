@@ -33,7 +33,7 @@ private val HttpResponse.isSuccess: Boolean
         return status == HttpStatusCode.OK || status == HttpStatusCode.Created
     }
 
-class TogglRepo(private val dataStore: DataStore) {
+class TogglRepo constructor(private val dataStore: DataStore) {
 
     suspend fun getTogglTimeEntries(from: LocalDate, to: LocalDate): List<TimeEntry> {
         val apiKey = getTogglApiKey()
