@@ -57,6 +57,7 @@ compose.desktop {
             packageVersion = rootProject.file("VERSION").readText().trim()
             macOS {
                 iconFile.set(project.file("icon.icns"))
+                entitlementsFile.set(project.file("default.entitlements"))
                 bundleID = "com.appswithlove.toggl2float"
                 signing {
                     val id = System.getenv("APPSTORE_IDENTITY")
