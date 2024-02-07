@@ -50,8 +50,12 @@ jobs:
           GIT_AUTH: ${{ secrets.GIT_AUTH }}
           MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
 
+      - name: Get Version
+        id: get_version
+        run: echo "::set-output name=version::$(cat $GITHUB_WORKSPACE/VERSION)"
+
       - name: Notarize
-        run: bundle exec fastlane run notarize package:"$GITHUB_WORKSPACE/build/compose/binaries/main-release/dmg/Toggl2Float-${cat $GITHUB_WORKSPACE/VERSION}.dmg" bundle_id:"com.appswithlove.toggl2float" api_key:"$APPSTORE_JSON" print_log:true
+        run: bundle exec fastlane run notarize package:"$GITHUB_WORKSPACE/build/compose/binaries/main-release/dmg/Toggl2Float-${{ steps.get_version.outputs.version }}.dmg" bundle_id:"com.appswithlove.toggl2float" api_key:"$APPSTORE_JSON" print_log:true
         env:
           APPSTORE_JSON: ${{ secrets.APPSTORE_JSON }}
           
