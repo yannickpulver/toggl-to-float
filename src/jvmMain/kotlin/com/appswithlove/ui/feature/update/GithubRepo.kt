@@ -1,6 +1,7 @@
 package com.appswithlove.ui.feature.update
 
 import com.appswithlove.json
+import com.appswithlove.toggl_to_float.BuildConfig
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.cio.CIO
@@ -31,7 +32,7 @@ class GithubRepo {
             return null
         }
 
-        val comparison = compareVersions("1.4.0", latestVersion.name)
+        val comparison = compareVersions(BuildConfig.APP_VERSION, latestVersion.name)
         return if (comparison < 0) latestVersion else null
     }
 

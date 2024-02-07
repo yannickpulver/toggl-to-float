@@ -4,7 +4,7 @@ plugins {
     kotlin("multiplatform")
     kotlin("plugin.serialization")
     id("org.jetbrains.compose")
-    //id("com.github.gmazzo.buildconfig") version "5.3.5"
+    id("com.github.gmazzo.buildconfig") version "5.3.5"
 }
 
 group = "com.appswithlove"
@@ -75,6 +75,6 @@ compose.desktop {
     }
 }
 
-//buildConfig {
-//    buildConfigField("APP_VERSION", provider { "${project.version}" })
-//}
+buildConfig {
+    buildConfigField("APP_VERSION", provider { "${project.version}" })
+}
