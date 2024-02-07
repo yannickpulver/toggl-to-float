@@ -59,8 +59,8 @@ jobs:
           - name: Build with Gradle
             run: ./gradlew.bat packageReleaseExe
 
-#          - name: Upload EXE as Artifact
-#            uses: actions/upload-artifact@v2
-#            with:
-#              name: Toggl2Float-exe
-#              path: build/compose/binaries/main-release/exe/*.exe
+          - name: Upload EXE as Artifact
+            uses: actions/upload-artifact@v2
+            with:
+              name: Toggl2Float-exe
+              path: build/compose/binaries/main-release/exe/*.exe
