@@ -51,6 +51,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import com.appswithlove.floaat.FloatPeopleItem
+import com.appswithlove.toggl_to_float.BuildConfig
 import com.appswithlove.ui.components.PrimaryButton
 import com.appswithlove.ui.feature.atlassian.AddTimeAtlassian
 import com.appswithlove.ui.feature.snackbar.SnackbarPublisher
@@ -59,7 +60,6 @@ import com.appswithlove.ui.feature.yourweek.YourWeek
 import com.appswithlove.ui.setup.SetupForm
 import com.appswithlove.ui.theme.FloaterTheme
 import com.appswithlove.ui.utils.openInBrowser
-import com.appswithlove.version
 import com.google.accompanist.flowlayout.FlowRow
 import com.vanpra.composematerialdialogs.DesktopWindowPosition
 import com.vanpra.composematerialdialogs.MaterialDialog
@@ -105,7 +105,7 @@ fun MainContent(viewModel: MainViewModel) {
 @Composable
 fun Version(modifier: Modifier = Modifier) {
     Text(
-        "Version $version",
+        "Version ${BuildConfig.APP_VERSION}",
         modifier = modifier,
         style = MaterialTheme.typography.caption
     )

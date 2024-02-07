@@ -4,10 +4,11 @@ plugins {
     kotlin("multiplatform")
     kotlin("plugin.serialization")
     id("org.jetbrains.compose")
+    id("com.github.gmazzo.buildconfig") version "5.3.5"
 }
 
 group = "com.appswithlove"
-version = "1.4.0"
+version = rootProject.file("VERSION").readText().trim()
 
 repositories {
     google()
@@ -53,7 +54,7 @@ compose.desktop {
             modules("jdk.unsupported")
             targetFormats(TargetFormat.Dmg, TargetFormat.Exe)
             packageName = "Toggl2Float"
-            packageVersion = "1.4.0"
+            packageVersion = rootProject.file("VERSION").readText().trim()
             macOS {
                 iconFile.set(project.file("icon.icns"))
                 bundleID = "com.appswithlove.toggl2float"
@@ -72,4 +73,8 @@ compose.desktop {
             obfuscate.set(false)
         }
     }
+}
+
+buildConfig {
+    buildConfigField("APP_VERSION", provider { "${project.version}" })
 }
