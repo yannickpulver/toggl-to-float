@@ -7,6 +7,7 @@ import io.ktor.client.call.body
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.request.get
 import kotlinx.serialization.decodeFromString
+import kotlin.math.max
 
 class GithubRepo {
 
@@ -39,7 +40,7 @@ class GithubRepo {
         val comparator: Comparator<String> = Comparator { o1, o2 ->
             val parts1 = o1.split("\\.".toRegex()).toTypedArray()
             val parts2 = o2.split("\\.".toRegex()).toTypedArray()
-            val length = Math.max(parts1.size, parts2.size)
+            val length = max(parts1.size, parts2.size)
             for (i in 0 until length) {
                 val part1 = if (i < parts1.size && parts1[i].isNotEmpty()) Integer.parseInt(parts1[i]) else 0
                 val part2 = if (i < parts2.size && parts2[i].isNotEmpty()) Integer.parseInt(parts2[i]) else 0
