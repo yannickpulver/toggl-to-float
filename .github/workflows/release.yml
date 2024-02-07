@@ -37,7 +37,7 @@ jobs:
           p12-password: ${{ secrets.SIGNING_CERTIFICATE_PASSWORD_MACOS }}
 
       - name: Build with Gradle
-        run: ./gradlew packageReleaseDmg
+        run: ./gradlew packageDmg
         env:
           APPSTORE_IDENTITY: ${{ secrets.APPSTORE_IDENTITY }}
 
@@ -55,7 +55,7 @@ jobs:
         run: echo "::set-output name=version::$(cat $GITHUB_WORKSPACE/VERSION)"
 
       - name: Notarize
-        run: bundle exec fastlane run notarize package:"$GITHUB_WORKSPACE/build/compose/binaries/main-release/dmg/Toggl2Float-${{ steps.get_version.outputs.version }}.dmg" bundle_id:"com.appswithlove.toggl2float" api_key:"$APPSTORE_JSON" print_log:true
+        run: bundle exec fastlane run notarize package:"$GITHUB_WORKSPACE/build/compose/binaries/main/dmg/Toggl2Float-${{ steps.get_version.outputs.version }}.dmg" bundle_id:"com.appswithlove.toggl2float" api_key:"$APPSTORE_JSON" print_log:true
         env:
           APPSTORE_JSON: ${{ secrets.APPSTORE_JSON }}
           
@@ -63,7 +63,7 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: Toggl2Float-dmg
-          path: build/compose/binaries/main-release/dmg/*.dmg
+          path: build/compose/binaries/main/dmg/*.dmg
 
   buildWindows:
     runs-on: windows-latest
