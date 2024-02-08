@@ -7,7 +7,8 @@ data class Store(
     val atlassianEmail: String?,
     val atlassianApiKey: String?,
     val atlassianHost: String?,
-    val atlassianPrefix: String?
+    val atlassianPrefix: String?,
+    val attlasianRoundToQuarterHour: Boolean
 ) {
     val shouldLoadPeople = (floatClientId == null || floatClientId == -1) && !floatKey.isNullOrEmpty()
 }

@@ -1,19 +1,24 @@
 package com.appswithlove.ui.feature.atlassian
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.Button
+import androidx.compose.material.Checkbox
 import androidx.compose.material.Icon
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.OutlinedButton
 import androidx.compose.material.Text
+import androidx.compose.material.TextButton
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.State
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -34,17 +39,35 @@ import java.time.LocalDate
 fun AddTimeAtlassian(modifier: Modifier = Modifier, viewModel: AtlassianViewModel = koinInject()) {
     val state = viewModel.state.collectAsState()
     Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(
-            "Jira Worklog",
-            style = MaterialTheme.typography.h4,
-        )
 
-        if (state.value.incomplete) {
+        val showForm = remember { mutableStateOf(false) }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "Jira Worklog",
+                style = MaterialTheme.typography.h4,
+                modifier = Modifier.weight(1f)
+            )
+            if (!state.value.incomplete && !showForm.value) {
+                TextButton(
+                    onClick = { showForm.value = !showForm.value },
+                    modifier = Modifier.height(24.dp),
+                    contentPadding = PaddingValues(0.dp)
+                ) {
+                    Text("Change Config")
+                }
+            }
+        }
+
+
+        if (state.value.incomplete || showForm.value) {
             Text(
                 "Add your jira credentials / info to track your worklog.",
                 style = MaterialTheme.typography.body2
             )
-            Form(state, viewModel)
+            Form(state.value) { email, apiKey, host, prefix, round ->
+                showForm.value = false
+                viewModel.save(email, apiKey, host, prefix, round)
+            }
         } else {
             Text(
                 "All worklogs starting with an issue id (e.g. '${state.value.prefix}-123') will be added to Jira.",
@@ -86,33 +109,57 @@ private fun AddAtlassianTimeEntries(addTimeEntries: (LocalDate) -> Unit) {
 
 @Composable
 private fun Form(
-    state: State<AtlassianState>,
-    viewModel: AtlassianViewModel
+    state: AtlassianState,
+    save: (String, String, String, String, Boolean) -> Unit
 ) {
-    val email = remember { mutableStateOf(state.value.email.orEmpty()) }
-    TextField(email.value, onValueChange = { email.value = it }, placeholder = { Text("Email") })
+    val email = remember { mutableStateOf(state.email.orEmpty()) }
+    TextField(
+        email.value, onValueChange = { email.value = it },
+        placeholder = { Text("Email") },
+        modifier = Modifier.fillMaxWidth()
+    )
 
-    val apiKey = remember { mutableStateOf(state.value.apiKey.orEmpty()) }
+    val apiKey = remember { mutableStateOf(state.apiKey.orEmpty()) }
     TextField(
         apiKey.value,
         onValueChange = { apiKey.value = it },
-        placeholder = { Text("API Key") })
+        placeholder = { Text("API Key") },
+        modifier = Modifier.fillMaxWidth()
+    )
 
-    val host = remember { mutableStateOf(state.value.host.orEmpty()) }
+    val host = remember { mutableStateOf(state.host.orEmpty()) }
     TextField(
         host.value,
         onValueChange = { host.value = it },
-        placeholder = { Text("Host (something.atlassian.net)") })
+        placeholder = { Text("Host (something.atlassian.net)") },
+        modifier = Modifier.fillMaxWidth()
+    )
 
-    val prefix = remember { mutableStateOf(state.value.host.orEmpty()) }
+    val prefix = remember { mutableStateOf(state.prefix.orEmpty()) }
     TextField(
         prefix.value,
         onValueChange = { prefix.value = it },
-        placeholder = { Text("Issue prefix (for ABC-123 that would be ABC") })
+        placeholder = { Text("Issue prefix (for ABC-123 that would be ABC") },
+        modifier = Modifier.fillMaxWidth()
+    )
 
-    Button(onClick = {
-        viewModel.save(email.value, apiKey.value, host.value, prefix.value)
-    }) {
+    val checked = remember { mutableStateOf(state.round) }
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.padding(top = 8.dp).fillMaxWidth()
+            .clickable { checked.value = !checked.value },
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Checkbox(
+            checked = checked.value,
+            onCheckedChange = { checked.value = it },
+            modifier = Modifier.size(24.dp)
+        )
+        Text("Round to quarter hour", style = MaterialTheme.typography.body2)
+    }
+
+
+    Button(onClick = { save(email.value, apiKey.value, host.value, prefix.value, checked.value) }) {
         Text("Save")
     }
 }

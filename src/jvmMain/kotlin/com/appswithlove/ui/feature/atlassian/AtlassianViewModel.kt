@@ -34,20 +34,18 @@ class AtlassianViewModel(
                     email = this.atlassianEmail,
                     apiKey = atlassianApiKey,
                     host = atlassianHost,
-                    prefix = atlassianPrefix
+                    prefix = atlassianPrefix,
+                    round = attlasianRoundToQuarterHour
                 )
             }
         }
     }
 
-    fun save(email: String, apiKey: String, host: String, prefix: String) {
-        dataStore.setAtlassianEmail(email)
-        dataStore.setAtlassianApiKey(apiKey)
-        dataStore.setAtlassianHost(host)
-        dataStore.setAtlassianPrefix(prefix)
+    fun save(email: String, apiKey: String, host: String, prefix: String, round: Boolean) {
+        dataStore.setAtlassianInfo(email, apiKey, host, prefix, round)
 
         state.update {
-            it.copy(email = email, apiKey = apiKey, host = host)
+            it.copy(email = email, apiKey = apiKey, host = host, prefix = prefix)
         }
     }
 
@@ -72,6 +70,8 @@ class AtlassianViewModel(
         }
     }
 
+
+
     private suspend fun withLoading(block: suspend () -> Unit) {
         _loadingCounter.update { it + 1 }
         block()
@@ -82,10 +82,11 @@ class AtlassianViewModel(
         val email: String?,
         val apiKey: String?,
         val host: String?,
-        val prefix: String?
+        val prefix: String?,
+        val round: Boolean = false
     ) {
 
-        val incomplete get() = email.isNullOrBlank() || apiKey.isNullOrBlank() || host.isNullOrBlank()
+        val incomplete get() = email.isNullOrBlank() || apiKey.isNullOrBlank() || host.isNullOrBlank() || prefix.isNullOrBlank()
 
         companion object {
             val EMPTY = AtlassianState("", "", "", "")

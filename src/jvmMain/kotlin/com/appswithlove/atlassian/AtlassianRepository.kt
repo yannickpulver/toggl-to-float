@@ -13,11 +13,20 @@ import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpStatusCode
 import java.util.Base64
+import kotlin.math.ceil
+import kotlin.math.roundToInt
 
 class AtlassianRepository(private val dataStore: DataStore) {
 
     private val client = HttpClient(CIO)
+
+    private fun roundSecondsToNearestQuarterHour(duration: Int): Int {
+        val durationInMinutes = duration / 60f
+        val roundedDurationInMinutes = ceil(durationInMinutes / 15) * 15
+        return roundedDurationInMinutes.toInt() * 60
+    }
 
     suspend fun postWorklog(
         issueId: String,
@@ -26,6 +35,12 @@ class AtlassianRepository(private val dataStore: DataStore) {
         comment: String
     ) {
         val url = "https://${dataStore.getStore.atlassianHost}/rest/api/3/issue/$issueId/worklog"
+
+        val time = if (dataStore.getStore.attlasianRoundToQuarterHour) {
+            roundSecondsToNearestQuarterHour(timeSpentSeconds)
+        } else {
+            timeSpentSeconds
+        }
 
         val data = """
             {
@@ -45,10 +60,15 @@ class AtlassianRepository(private val dataStore: DataStore) {
                 "version": 1
               },
               "started": "$started",
-              "timeSpentSeconds": $timeSpentSeconds
+              "timeSpentSeconds": $time
             }
         """.trimIndent()
-        postRequest(url, data)
+        val response = postRequest(url, data)
+        if (response.status == HttpStatusCode.Created) {
+            Logger.log("Worklog added for issue $issueId")
+        } else {
+            Logger.err("Worklog not added: ${response.bodyAsText()}")
+        }
     }
 
    private fun HttpRequestBuilder.basicAuthAtlassian() {
@@ -76,7 +96,6 @@ class AtlassianRepository(private val dataStore: DataStore) {
             basicAuthAtlassian()
             setBody(data)
         }
-        Logger.log("Response: ${response.status.value} ${response.bodyAsText()}")
         return response
     }
 
