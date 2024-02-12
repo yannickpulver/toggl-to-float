@@ -33,6 +33,8 @@ kotlin {
                 //implementation(compose.desktop.macos_arm64)
                 implementation("io.ktor:ktor-client-core:2.1.0")
                 implementation("io.ktor:ktor-client-cio:2.1.0")
+                implementation("io.ktor:ktor-client-content-negotiation:2.1.0")
+                implementation("io.ktor:ktor-serialization-kotlinx-json:2.1.0")
                 implementation("ca.gosyer:compose-material-dialogs-datetime:0.8.0")
                 implementation("ca.gosyer:accompanist-flowlayout:0.25.2")
                 implementation("com.bybutter.compose:compose-jetbrains-expui-theme:2.1.0")

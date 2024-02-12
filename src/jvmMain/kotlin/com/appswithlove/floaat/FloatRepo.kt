@@ -25,7 +25,7 @@ import java.util.Locale
 import kotlin.math.roundToInt
 
 class FloatRepo constructor(private val dataStore: DataStore) {
-    suspend fun pushToFloat(date: LocalDate, pairs: List<TimeEntryForPublishing>) {
+    suspend fun pushToFloat(date: LocalDate, pairs: List<TimeEntryForPublishing>) : Boolean {
         Logger.log("⬆️ Uploading ${pairs.size} time entries to Float!")
         Logger.log(Logger.SPACER)
         val floatUrl = getFloatUrl()
@@ -59,7 +59,7 @@ class FloatRepo constructor(private val dataStore: DataStore) {
             if (request.status != HttpStatusCode.OK) {
                 Logger.log("An error occurred when uploading: ${it.notes}")
                 Logger.log(request.bodyAsText() + request.status)
-                return
+                return false
             }
             Logger.log("Posting (${index + 1}/${timeEntries.size}): ${it.notes}")
         }
@@ -69,6 +69,7 @@ class FloatRepo constructor(private val dataStore: DataStore) {
         val totalTimeSaved = getTimeSaved(totalEntriesSaved)
         Logger.log(Logger.SPACER)
         Logger.log("🎉 You just saved $timeSaved. And a total of $totalTimeSaved!")
+        return true
     }
 
     private fun getTimeSaved(size: Int): String {

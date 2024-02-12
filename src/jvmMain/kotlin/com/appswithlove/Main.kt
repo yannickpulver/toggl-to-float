@@ -41,23 +41,30 @@ import io.kanro.compose.jetbrains.expui.window.LocalWindow
 import kotlinx.serialization.json.Json
 import org.koin.compose.KoinApplication
 import org.koin.compose.koinInject
+import java.awt.event.WindowEvent
+import java.awt.event.WindowFocusListener
 
 @Composable
 @Preview
 fun App(viewModel: MainViewModel) {
 
-    val window = LocalWindow.current
-    LaunchedEffect(Unit) {
-        window.addWindowFocusListener(object : java.awt.event.WindowFocusListener {
-            override fun windowGainedFocus(e: java.awt.event.WindowEvent?) {
-                viewModel.refresh()
-            }
-
-            override fun windowLostFocus(e: java.awt.event.WindowEvent?) {}
-        })
-    }
+    DoOnFocus(viewModel::refresh)
 
     MainContent(viewModel)
+}
+
+@Composable
+fun DoOnFocus(onRefresh: () -> Unit){
+    val window = LocalWindow.current
+    LaunchedEffect(Unit) {
+        window.addWindowFocusListener(object : WindowFocusListener {
+            override fun windowGainedFocus(e: WindowEvent?) {
+                onRefresh()
+            }
+
+            override fun windowLostFocus(e: WindowEvent?) {}
+        })
+    }
 }
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterialApi::class)

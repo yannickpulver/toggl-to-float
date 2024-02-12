@@ -176,7 +176,7 @@ fun LastRelease(lastRelease: LatestRelease?) {
     if (lastRelease != null) {
         Card(
             onClick = {
-                openInBrowser(URI.create(lastRelease.downloadUrl))
+                openInBrowser(URI.create(lastRelease.url))
             },
             modifier = Modifier.fillMaxWidth(),
             backgroundColor = MaterialTheme.colors.surface,

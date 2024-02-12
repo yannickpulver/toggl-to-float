@@ -26,6 +26,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
+import com.appswithlove.DoOnFocus
+import com.google.accompanist.flowlayout.FlowRow
 import com.vanpra.composematerialdialogs.DesktopWindowPosition
 import com.vanpra.composematerialdialogs.MaterialDialog
 import com.vanpra.composematerialdialogs.MaterialDialogProperties
@@ -34,10 +36,16 @@ import com.vanpra.composematerialdialogs.rememberMaterialDialogState
 import io.kanro.compose.jetbrains.expui.control.TextField
 import org.koin.compose.koinInject
 import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 
 @Composable
 fun AddTimeAtlassian(modifier: Modifier = Modifier, viewModel: AtlassianViewModel = koinInject()) {
     val state = viewModel.state.collectAsState()
+
+    DoOnFocus { viewModel.refresh() }
+
+
+
     Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
 
         val showForm = remember { mutableStateOf(false) }
@@ -58,7 +66,6 @@ fun AddTimeAtlassian(modifier: Modifier = Modifier, viewModel: AtlassianViewMode
             }
         }
 
-
         if (state.value.incomplete || showForm.value) {
             Text(
                 "Add your jira credentials / info to track your worklog.",
@@ -73,13 +80,16 @@ fun AddTimeAtlassian(modifier: Modifier = Modifier, viewModel: AtlassianViewMode
                 "All worklogs starting with an issue id (e.g. '${state.value.prefix}-123') will be added to Jira.",
                 style = MaterialTheme.typography.body2
             )
-            AddAtlassianTimeEntries(viewModel::addTimeEntries)
+            AddAtlassianTimeEntries(viewModel::addTimeEntries, state.value.missingEntryDates)
         }
     }
 }
 
 @Composable
-private fun AddAtlassianTimeEntries(addTimeEntries: (LocalDate) -> Unit) {
+private fun AddAtlassianTimeEntries(
+    addTimeEntries: (LocalDate) -> Unit,
+    missingEntryDates: List<LocalDate>
+) {
     val dialogState = rememberMaterialDialogState()
     MaterialDialog(
         dialogState = dialogState,
@@ -97,13 +107,31 @@ private fun AddAtlassianTimeEntries(addTimeEntries: (LocalDate) -> Unit) {
         }
     }
 
-    OutlinedButton(
-        onClick = { dialogState.show() },
-        contentPadding = PaddingValues(8.dp),
-        modifier = Modifier.height(32.dp)
+    FlowRow(
+        modifier = Modifier.fillMaxWidth(),
+        mainAxisSpacing = 8.dp,
+        crossAxisSpacing = 8.dp
     ) {
-        Icon(Icons.Default.DateRange, null)
-        Text("Select date...", Modifier.padding(start = 8.dp))
+
+        OutlinedButton(
+            onClick = { dialogState.show() },
+            contentPadding = PaddingValues(8.dp),
+            modifier = Modifier.height(32.dp)
+        ) {
+            Icon(Icons.Default.DateRange, null)
+            Text("Select date...", Modifier.padding(start = 8.dp))
+        }
+
+        missingEntryDates.forEach {
+            OutlinedButton(
+                onClick = { addTimeEntries(it) },
+                contentPadding = PaddingValues(8.dp),
+                modifier = Modifier.height(32.dp)
+            ) {
+                Text(it.format(DateTimeFormatter.ofPattern("EEE, dd.MM")))
+            }
+
+        }
     }
 }
 

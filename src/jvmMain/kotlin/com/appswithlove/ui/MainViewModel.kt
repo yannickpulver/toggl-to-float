@@ -377,7 +377,6 @@ class MainViewModel constructor(
             )
         }
 
-        floatRepo.pushToFloat(date, data)
-        return true
+        return floatRepo.pushToFloat(date, data)
     }
 }

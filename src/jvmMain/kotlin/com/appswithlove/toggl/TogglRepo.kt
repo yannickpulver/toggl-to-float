@@ -50,6 +50,13 @@ class TogglRepo constructor(private val dataStore: DataStore) {
         return entries.map { ZonedDateTime.parse(it.start).toLocalDate() }.distinct()
     }
 
+    suspend fun getDatesWithTimeEntriesAndPrefix(from: LocalDate, to: LocalDate, prefix: String): List<Pair<LocalDate, String>> {
+        val entries = getTogglTimeEntries(from, to)
+        return entries.filter { it.description?.startsWith(prefix) == true }
+            .map { ZonedDateTime.parse(it.start).toLocalDate() to it.description.orEmpty() }
+            .distinct()
+    }
+
     var projects: List<Project>? = null
     suspend fun getTogglProjects(): List<Project> {
         val apiKey = getTogglApiKey()
