@@ -1,6 +1,8 @@
 package com.appswithlove.atlassian
 
+import com.appswithlove.json
 import com.appswithlove.store.DataStore
+import com.appswithlove.toggl.Project
 import com.appswithlove.ui.Logger
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -16,22 +18,19 @@ import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.json.Json
 import java.time.LocalDate
 import java.time.ZoneId
 import kotlin.math.ceil
 
-class AtlassianRepository(private val dataStore: DataStore, private val client: HttpClient) {
+class AtlassianRepository(private val dataStore: DataStore, private val client: HttpClient, private val json: Json) {
 
     private fun roundSecondsToNearestQuarterHour(duration: Int): Int {
         val durationInMinutes = duration / 60f
         val roundedDurationInMinutes = ceil(durationInMinutes / 15) * 15
         return roundedDurationInMinutes.toInt() * 60
     }
-
-    @Serializable
-    data class WorklogResponse(
-        val total: Int
-    )
 
     suspend fun hasWorklog(issueId: String, date: LocalDate): Boolean {
 
@@ -50,7 +49,7 @@ class AtlassianRepository(private val dataStore: DataStore, private val client: 
             return false
         }
 
-        val body: WorklogResponse = response.body()
+        val body: WorklogResponse = json.decodeFromString<WorklogResponse>(response.body())
         return body.total > 0
     }
 

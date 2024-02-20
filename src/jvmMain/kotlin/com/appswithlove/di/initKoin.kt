@@ -39,7 +39,7 @@ fun KoinApplication.initKoin(): KoinApplication {
             single { FloatRepo(get()) }
             single { TogglRepo(get()) }
             single { GithubRepo() }
-            single { AtlassianRepository(get(), get()) }
+            single { AtlassianRepository(get(), get(), get()) }
             factory { MainViewModel(get(), get(), get(), get()) }
             factory { AtlassianViewModel(get(), get(), get()) }
         },
