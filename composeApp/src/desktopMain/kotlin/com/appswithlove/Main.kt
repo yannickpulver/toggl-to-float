@@ -1,4 +1,5 @@
-package com.appswithlove// Copyright 2000-2021 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file.
+package com.appswithlove
+// Copyright 2000-2021 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file.
 import androidx.compose.desktop.ui.tooling.preview.Preview
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
@@ -7,7 +8,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.AlertDialog
 import androidx.compose.material.CircularProgressIndicator
-import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
@@ -54,7 +54,7 @@ fun App(viewModel: MainViewModel) {
 }
 
 @Composable
-fun DoOnFocus(onRefresh: () -> Unit){
+fun DoOnFocus(onRefresh: () -> Unit) {
     val window = LocalWindow.current
     LaunchedEffect(Unit) {
         window.addWindowFocusListener(object : WindowFocusListener {
@@ -67,7 +67,7 @@ fun DoOnFocus(onRefresh: () -> Unit){
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterialApi::class)
+@OptIn(ExperimentalFoundationApi::class)
 fun main() = application {
     KoinApplication(application = { initKoin() }) {
         val viewModel = koinInject<MainViewModel>()
@@ -148,8 +148,6 @@ fun main() = application {
         }
     }
 }
-
-
 
 val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
 val jsonNoDefaults = Json { ignoreUnknownKeys = true }

@@ -36,7 +36,7 @@ jobs:
           p12-password: ${{ secrets.SIGNING_CERTIFICATE_PASSWORD_MACOS }}
 
       - name: Build with Gradle
-        run: ./gradlew packageReleaseDmg
+        run: ./gradlew :composeApp:packageReleaseDmg
         env:
           APPSTORE_IDENTITY: ${{ secrets.APPSTORE_IDENTITY }}
 
@@ -62,7 +62,7 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: Toggl2Float-dmg
-          path: build/compose/binaries/main-release/dmg/*.dmg
+          path: composeApp/build/compose/binaries/main-release/dmg/*.dmg
 
   buildWindows:
     runs-on: windows-latest
@@ -83,13 +83,13 @@ jobs:
           cache: gradle
 
       - name: Build with Gradle
-        run: ./gradlew.bat packageReleaseExe
+        run: ./gradlew.bat :composeApp:packageReleaseExe
 
       - name: Upload EXE as Artifact
         uses: actions/upload-artifact@v2
         with:
           name: Toggl2Float-exe
-          path: build/compose/binaries/main-release/exe/*.exe
+          path: composeApp/build/compose/binaries/main-release/exe/*.exe
 
   release:
     needs: [ buildMac, buildWindows ]

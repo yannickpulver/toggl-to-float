@@ -1,6 +1,5 @@
 package com.appswithlove.floaat
 
-import androidx.compose.material.MaterialTheme
 import androidx.compose.ui.graphics.Color
 
 data class FloatOverview(

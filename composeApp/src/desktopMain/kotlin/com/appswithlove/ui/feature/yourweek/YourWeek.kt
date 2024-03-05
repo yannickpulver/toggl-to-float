@@ -45,6 +45,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.appswithlove.floaat.FloatOverview
 import com.appswithlove.floaat.FloatProject
 import com.appswithlove.floaat.rgbColor
@@ -55,7 +56,6 @@ import com.appswithlove.ui.theme.FloaterTheme
 import com.appswithlove.ui.totalHours
 import com.appswithlove.ui.utils.openInBrowser
 import java.net.URI
-import java.net.URLEncoder
 import kotlin.math.pow
 
 @Composable
@@ -122,7 +122,6 @@ private fun ProjectItem(
     startTimer: (Int, String) -> Unit = { _, _ -> }
 ) {
     val clipboardManager: ClipboardManager = LocalClipboardManager.current
-    val scope = rememberCoroutineScope()
 
     val showNotes = remember { mutableStateOf(false) }
 
@@ -180,6 +179,7 @@ private fun ProjectItem(
                                     .background(color),
                                 color = contentColorFor(color),
                                 style = MaterialTheme.typography.subtitle2,
+                                lineHeight = 18.sp,
                                 maxLines = 2,
                                 overflow = TextOverflow.Ellipsis
                             )

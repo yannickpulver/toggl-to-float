@@ -56,7 +56,7 @@ class AtlassianViewModel(
                 !hasWorklog
             }.map { it.first }
 
-            _state.update { it.copy(missingEntryDates = missingEntries.sorted()) }
+            _state.update { it.copy(missingEntryDates = missingEntries.toSet().sorted()) }
         }
     }
 

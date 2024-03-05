@@ -1,8 +1,6 @@
 package com.appswithlove.atlassian
 
-import com.appswithlove.json
 import com.appswithlove.store.DataStore
-import com.appswithlove.toggl.Project
 import com.appswithlove.ui.Logger
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -17,7 +15,6 @@ import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
-import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import java.time.LocalDate

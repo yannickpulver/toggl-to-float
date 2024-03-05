@@ -1,7 +1,7 @@
 package com.appswithlove.ui.feature.update
 
+import com.appswithlove.BuildConfig
 import com.appswithlove.json
-import com.appswithlove.toggl_to_float.BuildConfig
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.cio.CIO

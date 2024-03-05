@@ -50,8 +50,8 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
+import com.appswithlove.BuildConfig
 import com.appswithlove.floaat.FloatPeopleItem
-import com.appswithlove.toggl_to_float.BuildConfig
 import com.appswithlove.ui.components.PrimaryButton
 import com.appswithlove.ui.feature.atlassian.AddTimeAtlassian
 import com.appswithlove.ui.feature.snackbar.SnackbarPublisher
