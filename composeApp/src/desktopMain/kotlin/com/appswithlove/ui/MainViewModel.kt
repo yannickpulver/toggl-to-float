@@ -193,6 +193,7 @@ class MainViewModel constructor(
                     }
                 } catch (exception: java.lang.Exception) {
                     Logger.err("Double check your dates to have format YYYY-MM-DD")
+                    exception.message?.let { Logger.err(it) }
                 }
             }
         }
