@@ -12,7 +12,7 @@ data class FloatTask(
     val modified: String,
     val modified_by: Int,
     val name: String,
-    val notes: String,
+    val notes: String? = null,
     val parent_task_id: Int? = null,
     val people_id: Int? = null,
     val people_ids: List<Int>? = null,

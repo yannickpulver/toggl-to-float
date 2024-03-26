@@ -194,7 +194,7 @@ private fun ProjectItem(
                             ) {
                                 Spacer(Modifier.weight(1f))
 
-                                if (item.task.notes.isNotEmpty()) {
+                                if (!item.task.notes.isNullOrEmpty()) {
                                     IconButton(
                                         modifier = Modifier.size(20.dp),
                                         onClick = {
@@ -246,7 +246,7 @@ private fun ProjectItem(
                                 .onClick(
                                     matcher = PointerMatcher.mouse(PointerButton.Secondary),
                                     onClick = {
-                                        clipboardManager.setText(AnnotatedString(item.task.notes))
+                                        clipboardManager.setText(AnnotatedString(item.task.notes.orEmpty()))
                                         SnackbarStateHolder.success("Copied notes to clipboard")
                                     }
                                 )
@@ -267,7 +267,7 @@ private fun ProjectItem(
                                     IconButton(
                                         modifier = Modifier.size(20.dp),
                                         onClick = {
-                                            clipboardManager.setText(AnnotatedString(item.task.notes))
+                                            clipboardManager.setText(AnnotatedString(item.task.notes.orEmpty()))
                                             SnackbarStateHolder.success("Copied notes to clipboard")
                                         }
                                     ) {
@@ -279,7 +279,7 @@ private fun ProjectItem(
                                     }
                                 }
                                 LinkifiedText(
-                                    text = item.task.notes,
+                                    text = item.task.notes.orEmpty(),
                                 )
                             }
                             // }
