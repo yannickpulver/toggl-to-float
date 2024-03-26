@@ -98,8 +98,9 @@ private fun AddAtlassianTimeEntries(
             negativeButton("Cancel")
         },
         properties = MaterialDialogProperties(
-            size = DpSize(300.dp, 500.dp),
-            position = DesktopWindowPosition(Alignment.Center)
+            windowTitle = "Select Date",
+            windowSize = DpSize(300.dp, 500.dp),
+            windowPosition = DesktopWindowPosition(Alignment.Center)
         )
     ) {
         datepicker { date ->

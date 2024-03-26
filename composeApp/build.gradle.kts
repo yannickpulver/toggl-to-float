@@ -44,7 +44,7 @@ kotlin {
             implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.5.0")
             implementation("io.ktor:ktor-client-content-negotiation:2.1.0")
             implementation("io.ktor:ktor-serialization-kotlinx-json:2.1.0")
-            implementation("ca.gosyer:compose-material-dialogs-datetime:0.8.0")
+            implementation("ca.gosyer:compose-material-dialogs-datetime:0.9.5")
             implementation("ca.gosyer:accompanist-flowlayout:0.25.2")
 
         }
