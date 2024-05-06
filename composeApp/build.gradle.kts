@@ -78,6 +78,8 @@ compose.desktop {
             configurationFiles.from(project.file("compose-desktop.pro"))
             obfuscate.set(false)
         }
+        task("testClasses")
+
     }
 }
 

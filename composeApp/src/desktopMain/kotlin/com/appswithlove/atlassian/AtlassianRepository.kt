@@ -23,9 +23,14 @@ import kotlin.math.ceil
 
 class AtlassianRepository(private val dataStore: DataStore, private val client: HttpClient, private val json: Json) {
 
-    private fun roundSecondsToNearestQuarterHour(duration: Int): Int {
+    fun roundSecondsToNearestQuarterHour(duration: Int): Int {
         val durationInMinutes = duration / 60f
-        val roundedDurationInMinutes = ceil(durationInMinutes / 15) * 15
+        val remainder = durationInMinutes % 15
+        val roundedDurationInMinutes = if (remainder <= 5) {
+            durationInMinutes - remainder
+        } else {
+            ceil(durationInMinutes / 15) * 15
+        }
         return roundedDurationInMinutes.toInt() * 60
     }
 
