@@ -41,7 +41,7 @@ jobs:
           APPSTORE_IDENTITY: ${{ secrets.APPSTORE_IDENTITY }}
 
       - name: Match
-        run: bundle exec fastlane match developer_id --username $APPSTORE_USERNAME --git_url $CERTS_REPO --git_basic_authorization $GIT_AUTH --git_branch info --skip_certificate_matching true --readonly --team_id $APPSTORE_TEAMIDENTIFIER --app_identifier $APPSTORE_APPIDENTIFIER --gitlab_host $GITLAB_HOST,
+        run: bundle exec fastlane match developer_id --username $APPSTORE_USERNAME --git_url $CERTS_REPO --git_basic_authorization $GIT_AUTH --git_branch info --skip_certificate_matching true --readonly --team_id $APPSTORE_TEAMIDENTIFIER --gitlab_host $GITLAB_HOST --app_identifier ,
         env:
           APPSTORE_TEAMIDENTIFIER: ${{ secrets.APPSTORE_TEAMIDENTIFIER }}
           APPSTORE_USERNAME: ${{ secrets.APPSTORE_USERNAME }}
