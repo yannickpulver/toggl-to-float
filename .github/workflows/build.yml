@@ -54,7 +54,7 @@ jobs:
           GITLAB_HOST: ${{ secrets.GITLAB_HOST }}
 
       - name: Upload DMG as Artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: Toggl2Float-dmg
           path: composeApp/build/compose/binaries/main-release/dmg/*.dmg
@@ -81,7 +81,7 @@ jobs:
         run: ./gradlew.bat :composeApp:packageReleaseExe
 
       - name: Upload EXE as Artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: Toggl2Float-exe
           path: composeApp/build/compose/binaries/main-release/exe/*.exe
