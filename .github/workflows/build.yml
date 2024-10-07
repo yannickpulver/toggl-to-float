@@ -44,7 +44,7 @@ jobs:
         run: ./gradlew :composeApp:packageReleaseDmg
 
       - name: Match
-        run: bundle exec fastlane match developer_id --username $APPSTORE_USERNAME --git_url $CERTS_REPO --git_basic_authorization $GIT_AUTH --git_branch info --skip_certificate_matching true --readonly --team_id $APPSTORE_TEAMIDENTIFIER --gitlab_host $GITLAB_HOST --app_identifier ,
+        run: bundle exec fastlane match developer_id --username $APPSTORE_USERNAME --git_url $CERTS_REPO --git_basic_authorization $GIT_AUTH --git_branch info --skip_certificate_matching true --readonly --team_id $APPSTORE_TEAMIDENTIFIER --gitlab_host $GITLAB_HOST --app_identifier $APPIDENTIFIER,
         env:
           APPSTORE_TEAMIDENTIFIER: ${{ secrets.APPSTORE_TEAMIDENTIFIER }}
           APPSTORE_USERNAME: ${{ secrets.APPSTORE_USERNAME }}
@@ -52,9 +52,9 @@ jobs:
           GIT_AUTH: ${{ secrets.GIT_AUTH }}
           MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
           GITLAB_HOST: ${{ secrets.GITLAB_HOST }}
-          APPSTORE_APPIDENTIFIER: ${{ secrets.APPSTORE_APPIDENTIFIER }}
+          APPIDENTIFIER: ${{ secrets.APPSTORE_APPIDENTIFIER }}
 
-      - name: Upload DMG as Artifact
+      - name: Upload DMG as Artifactd
         uses: actions/upload-artifact@v4
         with:
           name: Toggl2Float-dmg
