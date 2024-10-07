@@ -25,7 +25,7 @@ import java.util.Locale
 import kotlin.math.roundToInt
 
 class FloatRepo constructor(private val dataStore: DataStore) {
-    suspend fun pushToFloat(date: LocalDate, pairs: List<TimeEntryForPublishing>) : Boolean {
+    suspend fun pushToFloat(date: LocalDate, pairs: List<TimeEntryForPublishing>): Boolean {
         Logger.log("⬆️ Uploading ${pairs.size} time entries to Float!")
         Logger.log(Logger.SPACER)
         val floatUrl = getFloatUrl()
@@ -35,7 +35,12 @@ class FloatRepo constructor(private val dataStore: DataStore) {
             val phase = getPhase(it.id)
             val projectId = phase?.project_id ?: it.id
             val task = it.timeEntry.tags.orEmpty().map { tag ->
-                getFloatTask(projectId, tag, date)
+                getFloatTask(
+                    projectId = projectId,
+                    phaseId = phase?.phase_id,
+                    name = tag,
+                    date = date
+                )
             }.firstOrNull()
 
             val description = it.timeEntry.description
@@ -104,7 +109,7 @@ class FloatRepo constructor(private val dataStore: DataStore) {
         return tasks
             .filter {
                 monday <= LocalDate.parse(it.end_date) ||
-                    (it.repeat_end_date != null && monday <= LocalDate.parse(it.repeat_end_date))
+                        (it.repeat_end_date != null && monday <= LocalDate.parse(it.repeat_end_date))
             }
             .map {
                 val project = projects[it.project_id] ?: getProject(it.project_id)
@@ -136,7 +141,12 @@ class FloatRepo constructor(private val dataStore: DataStore) {
         return getAllPages<FloatTask>(endpoint).sortedBy { it.name }
     }
 
-    private suspend fun getFloatTask(projectId: Int, name: String, date: LocalDate): FloatTask? {
+    private suspend fun getFloatTask(
+        projectId: Int,
+        phaseId: Int?,
+        name: String,
+        date: LocalDate
+    ): FloatTask? {
         val floatUrl = getFloatUrl()
         val userId = getFloatClientId()
         val endpoint = "$floatUrl/tasks"
@@ -145,11 +155,14 @@ class FloatRepo constructor(private val dataStore: DataStore) {
             "people_id=$userId&project_id=$projectId"
         ).sortedBy { it.name }
 
-        return tasks.filter {
-            date <= LocalDate.parse(it.end_date) || (it.repeat_end_date != null && date <= LocalDate.parse(
-                it.repeat_end_date
-            ))
-        }.find { it.name == name }
+        return tasks
+            .filter { if (phaseId != null) it.phase_id == phaseId else true }
+            .filter {
+                date <= LocalDate.parse(it.end_date) || (it.repeat_end_date != null && date <= LocalDate.parse(
+                    it.repeat_end_date
+                ))
+            }
+            .find { it.name == name }
     }
 
     suspend fun getFloatTaskNames(): List<String> {
