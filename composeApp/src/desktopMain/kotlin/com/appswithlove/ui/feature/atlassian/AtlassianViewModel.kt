@@ -15,6 +15,7 @@ import java.text.SimpleDateFormat
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.util.Date
+import kotlin.math.roundToInt
 
 class AtlassianViewModel(
     private val togglRepo: TogglRepo,
@@ -64,21 +65,23 @@ class AtlassianViewModel(
         dataStore.getStore.apply {
             _state.update {
                 it.copy(
-                    email = this.atlassianEmail,
+                    email = atlassianEmail,
                     apiKey = atlassianApiKey,
                     host = atlassianHost,
                     prefix = atlassianPrefix,
-                    round = attlasianRoundToQuarterHour
+                    round = attlasianRoundToQuarterHour,
+                    quote = atlassianQuote.toString()
                 )
             }
         }
     }
 
-    fun save(email: String, apiKey: String, host: String, prefix: String, round: Boolean) {
-        dataStore.setAtlassianInfo(email, apiKey, host, prefix, round)
+    fun save(email: String, apiKey: String, host: String, prefix: String, round: Boolean, quote: String) {
+        val doubleQuote = minOf(quote.toDoubleOrNull() ?: 1.0, 1.0)
+        dataStore.setAtlassianInfo(email, apiKey, host, prefix, round, doubleQuote)
 
         _state.update {
-            it.copy(email = email, apiKey = apiKey, host = host, prefix = prefix)
+            it.copy(email = email, apiKey = apiKey, host = host, prefix = prefix, quote = quote, round = round)
         }
     }
 
@@ -96,7 +99,8 @@ class AtlassianViewModel(
                     val formattedTime = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ").format(Date(time.toEpochMilliseconds()))
                     val description = it.description ?: return@forEach
                     val issueId = getIssueId(prefix, description) ?: return@forEach
-                    success = success && repo.postWorklog(issueId, formattedTime, it.duration, description.substringAfter(issueId).trim())
+                    val duration = (it.duration * dataStore.getStore.atlassianQuote).roundToInt()
+                    success = success && repo.postWorklog(issueId, formattedTime, duration, description.substringAfter(issueId).trim())
                 }
             }
 
@@ -120,6 +124,7 @@ class AtlassianViewModel(
         val apiKey: String?,
         val host: String?,
         val prefix: String?,
+        val quote: String = "1.0",
         val round: Boolean = false,
         val missingEntryDates: List<LocalDate> = emptyList()
     ) {

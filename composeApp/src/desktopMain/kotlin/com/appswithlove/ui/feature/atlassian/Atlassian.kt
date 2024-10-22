@@ -71,9 +71,9 @@ fun AddTimeAtlassian(modifier: Modifier = Modifier, viewModel: AtlassianViewMode
                 "Add your jira credentials / info to track your worklog.",
                 style = MaterialTheme.typography.body2
             )
-            Form(state.value) { email, apiKey, host, prefix, round ->
+            Form(state.value) { email, apiKey, host, prefix, round, quote ->
                 showForm.value = false
-                viewModel.save(email, apiKey, host, prefix, round)
+                viewModel.save(email, apiKey, host, prefix, round, quote)
             }
         } else {
             Text(
@@ -139,7 +139,7 @@ private fun AddAtlassianTimeEntries(
 @Composable
 private fun Form(
     state: AtlassianState,
-    save: (String, String, String, String, Boolean) -> Unit
+    save: (String, String, String, String, Boolean, String) -> Unit
 ) {
     val email = remember { mutableStateOf(state.email.orEmpty()) }
     TextField(
@@ -172,6 +172,14 @@ private fun Form(
         modifier = Modifier.fillMaxWidth()
     )
 
+    val quote = remember { mutableStateOf(state.quote) }
+    TextField(
+        quote.value,
+        onValueChange = { quote.value = it },
+        placeholder = { Text("Quote how much of your time should be reported (defaults to 1.0)") },
+        modifier = Modifier.fillMaxWidth()
+    )
+
     val checked = remember { mutableStateOf(state.round) }
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -188,7 +196,7 @@ private fun Form(
     }
 
 
-    Button(onClick = { save(email.value, apiKey.value, host.value, prefix.value, checked.value) }) {
+    Button(onClick = { save(email.value, apiKey.value, host.value, prefix.value, checked.value, quote.value) }) {
         Text("Save")
     }
 }
