@@ -149,5 +149,5 @@ fun main() = application {
     }
 }
 
-val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
+val json = Json { ignoreUnknownKeys = true; encodeDefaults = true; isLenient = true; explicitNulls = false }
 val jsonNoDefaults = Json { ignoreUnknownKeys = true }

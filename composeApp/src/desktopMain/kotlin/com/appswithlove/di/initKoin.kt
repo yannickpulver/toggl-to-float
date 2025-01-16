@@ -24,6 +24,7 @@ fun KoinApplication.initKoin(): KoinApplication {
                     ignoreUnknownKeys = true
                     isLenient = true
                     encodeDefaults = true
+                    explicitNulls = false
                 }
             }
 
