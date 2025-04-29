@@ -23,16 +23,6 @@ import kotlin.math.ceil
 
 class AtlassianRepository(private val dataStore: DataStore, private val client: HttpClient, private val json: Json) {
 
-    fun roundSecondsToNearestQuarterHour(duration: Int): Int {
-        val durationInMinutes = duration / 60f
-        val remainder = durationInMinutes % 15
-        val roundedDurationInMinutes = if (remainder <= 5) {
-            durationInMinutes - remainder
-        } else {
-            ceil(durationInMinutes / 15) * 15
-        }
-        return roundedDurationInMinutes.toInt() * 60
-    }
 
     suspend fun hasWorklog(issueId: String, date: LocalDate): Boolean {
 
@@ -55,6 +45,20 @@ class AtlassianRepository(private val dataStore: DataStore, private val client: 
         return body.total > 0
     }
 
+    suspend fun hasPermission(issueId: String) : Boolean {
+        val url = "https://${dataStore.getStore.atlassianHost}/rest/api/3/mypermissions?issueKey=$issueId&permissions=WORK_ON_ISSUES"
+        val result = getRequest(url)
+
+        if (result.status != HttpStatusCode.OK) {
+            Logger.err("Error getting permissions: ${result.bodyAsText()}")
+            return false
+        } else {
+            val body: PermissionResponse = json.decodeFromString<PermissionResponse>(result.body())
+            return body.permissions.WORK_ON_ISSUES.havePermission
+        }
+    }
+
+
     suspend fun postWorklog(
         issueId: String,
         started: String,
@@ -62,12 +66,6 @@ class AtlassianRepository(private val dataStore: DataStore, private val client: 
         comment: String
     ): Boolean {
         val url = "https://${dataStore.getStore.atlassianHost}/rest/api/3/issue/$issueId/worklog"
-
-        val time = if (dataStore.getStore.attlasianRoundToQuarterHour) {
-            roundSecondsToNearestQuarterHour(timeSpentSeconds)
-        } else {
-            timeSpentSeconds
-        }
 
         val data = """
             {
@@ -87,7 +85,7 @@ class AtlassianRepository(private val dataStore: DataStore, private val client: 
                 "version": 1
               },
               "started": "$started",
-              "timeSpentSeconds": $time
+              "timeSpentSeconds": $timeSpentSeconds
             }
         """.trimIndent()
         val response = postRequest(url, data)
