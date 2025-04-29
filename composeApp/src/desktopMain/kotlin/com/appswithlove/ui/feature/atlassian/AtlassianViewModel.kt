@@ -121,7 +121,14 @@ class AtlassianViewModel(
                     } else {
                         duration
                     }
-                    it.copy(duration = timeSpentSeconds)
+
+                    val start = if (dataStore.getStore.attlasianRoundToQuarterHour) {
+                        Instant.parse(it.start).roundToQuarter().toString()
+                    } else {
+                        it.start
+                    }
+
+                    it.copy(duration = timeSpentSeconds, start = start)
 
                 }
                 val adjustedEntries = mutableListOf<TimeEntry>()
@@ -185,6 +192,13 @@ class AtlassianViewModel(
                 _state.update { it.copy(missingEntryDates = it.missingEntryDates.filter { it != date }) }
             }
         }
+    }
+
+    private val QUARTER_SEC = 15 * 60L           // 900 s
+
+    fun Instant.roundToQuarter(): Instant {
+        val rounded = ((epochSeconds + QUARTER_SEC / 2) / QUARTER_SEC) * QUARTER_SEC
+        return Instant.fromEpochSeconds(rounded)
     }
 
     fun roundSecondsToNearestQuarterHour(duration: Int): Int {
