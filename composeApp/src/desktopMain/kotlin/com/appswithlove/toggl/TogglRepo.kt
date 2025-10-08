@@ -108,7 +108,7 @@ class TogglRepo constructor(private val dataStore: DataStore) {
 
             val timeEntry = TimeEntryCreate(
                 project_id = project.id,
-                tags = listOf(task),
+                description = task,
                 workspace_id = workspaceId
             )
             val response = postRequest(api, json.encodeToString(timeEntry), togglApiKey)
@@ -123,7 +123,8 @@ class TogglRepo constructor(private val dataStore: DataStore) {
             val update = TimeEntryUpdateFull(
                 id = currentEntry.id,
                 project_id = project.id,
-                tags = listOf(task),
+                description = task,
+                tags = null,
                 workspace_id = workspaceId,
             )
             val response = putRequest(api, json.encodeToString(update), togglApiKey)

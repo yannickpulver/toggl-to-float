@@ -15,3 +15,6 @@ val Unread = Color(0xFFFFFBF4)
 val GreenHover8 = Color(0x1400857C)
 val Red = Color(0xFFFF0044)
 
+val LightBlue = Color(0xFF68DDFD)
+
+

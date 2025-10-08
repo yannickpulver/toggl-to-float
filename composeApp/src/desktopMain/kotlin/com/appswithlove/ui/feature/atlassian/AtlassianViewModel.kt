@@ -43,8 +43,34 @@ class AtlassianViewModel(
 
         refreshFromStore()
         getMissingEntries()
+        getSprintIssues()
+        loadTogglProjects()
 
         _lastRefresh = LocalDateTime.now()
+    }
+
+    private fun loadTogglProjects() {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val projects = togglRepo.getTogglProjects()
+                _state.update { it.copy(togglProjects = projects) }
+            } catch (e: Exception) {
+                // Projects couldn't be loaded
+            }
+        }
+    }
+
+    private fun getSprintIssues() {
+        if (dataStore.getStore.atlassianEmail.isNullOrBlank() ||
+            dataStore.getStore.atlassianApiKey.isNullOrBlank() ||
+            dataStore.getStore.atlassianHost.isNullOrBlank()) {
+            return
+        }
+
+        CoroutineScope(Dispatchers.IO).launch {
+            val issues = repo.getCurrentSprintIssues()
+            _state.update { it.copy(sprintIssues = issues) }
+        }
     }
 
     private fun getMissingEntries() {
@@ -74,8 +100,42 @@ class AtlassianViewModel(
                     host = atlassianHost,
                     prefix = atlassianPrefix,
                     round = attlasianRoundToQuarterHour,
-                    quote = atlassianQuote.toString()
+                    quote = atlassianQuote.toString(),
+                    selectedTogglProjectId = atlassianTogglProjectId
                 )
+            }
+        }
+    }
+
+    fun setTogglProject(projectId: Int?) {
+        dataStore.setAtlassianTogglProjectId(projectId)
+        _state.update { it.copy(selectedTogglProjectId = projectId) }
+    }
+
+    fun startTimeTracking(issueKey: String, issueName: String) {
+        val projectId = _state.value.selectedTogglProjectId
+        if (projectId == null) {
+            Logger.err("Please select a Toggl project first")
+            return
+        }
+
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val workspace = togglRepo.getWorkspaces()
+                if (workspace == null) {
+                    Logger.err("Couldn't get workspace")
+                    return@launch
+                }
+
+                val project = _state.value.togglProjects.find { it.id == projectId }
+                if (project == null) {
+                    Logger.err("Selected project not found")
+                    return@launch
+                }
+
+                togglRepo.startTimer(workspace.id, project, "$issueKey $issueName")
+            } catch (e: Exception) {
+                Logger.err("Error starting time tracking: ${e.message}")
             }
         }
     }
@@ -229,7 +289,10 @@ data class AtlassianState(
     val prefix: String?,
     val quote: String = "1.0",
     val round: Boolean = false,
-    val missingEntryDates: List<LocalDate> = emptyList()
+    val missingEntryDates: List<LocalDate> = emptyList(),
+    val sprintIssues: List<com.appswithlove.atlassian.JiraIssue> = emptyList(),
+    val togglProjects: List<com.appswithlove.toggl.Project> = emptyList(),
+    val selectedTogglProjectId: Int? = null
 ) {
 
     val incomplete get() = email.isNullOrBlank() || apiKey.isNullOrBlank() || host.isNullOrBlank() || prefix.isNullOrBlank()

@@ -144,7 +144,7 @@ private fun MainContent(
                                 YourWeek(state, loadLastWeek, startTimer)
                             }
                             Divider()
-                            AddTimeAtlassian()
+                            AddTimeAtlassian(weeklyOverview = state.weeklyOverview)
                             Divider()
                             Logs(
                                 list = state.logs,

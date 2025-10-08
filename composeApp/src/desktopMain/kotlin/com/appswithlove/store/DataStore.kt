@@ -14,6 +14,7 @@ class DataStore {
     private val field_atlassianPrefix = "atlassianPrefix"
     private val field_atlassianQuote = "atlassianQuote"
     private val field_atlassianRoundToQuarterHour = "atlassianRoundToQuarterHour"
+    private val field_atlassianTogglProjectId = "atlassianTogglProjectId"
     private val preferences = Preferences.userNodeForPackage(javaClass)
 
     val getStore: Store
@@ -28,6 +29,7 @@ class DataStore {
             val atlassianQuote = preferences.getDouble(field_atlassianQuote, 1.0)
             val atlassianRoundToQuarterHour =
                 preferences.getBoolean(field_atlassianRoundToQuarterHour, false)
+            val atlassianTogglProjectId = preferences.getInt(field_atlassianTogglProjectId, -1).takeIf { it != -1 }
             return Store(
                 togglApiKey,
                 floatApiKey,
@@ -37,7 +39,8 @@ class DataStore {
                 atlassianUrl,
                 atlassianPrefix,
                 atlassianRoundToQuarterHour,
-                atlassianQuote
+                atlassianQuote,
+                atlassianTogglProjectId
             )
         }
 
@@ -67,6 +70,10 @@ class DataStore {
         preferences.put(field_atlassianPrefix, prefix.orEmpty())
         preferences.putBoolean(field_atlassianRoundToQuarterHour, roundToQuarterHour)
         preferences.putDouble(field_atlassianQuote, quote)
+    }
+
+    fun setAtlassianTogglProjectId(projectId: Int?) {
+        preferences.putInt(field_atlassianTogglProjectId, projectId ?: -1)
     }
 
     fun addAndGetTimeEntryCount(entriesUploaded: Int): Int {

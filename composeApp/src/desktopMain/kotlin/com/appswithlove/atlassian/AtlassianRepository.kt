@@ -24,6 +24,32 @@ import kotlin.math.ceil
 class AtlassianRepository(private val dataStore: DataStore, private val client: HttpClient, private val json: Json) {
 
 
+    suspend fun getCurrentSprintIssues(): List<JiraIssue> {
+        val email = dataStore.getStore.atlassianEmail
+        if (email.isNullOrEmpty()) {
+            Logger.err("No Atlassian email configured")
+            return emptyList()
+        }
+
+        // JQL query to get issues assigned to current user in active sprint
+        val jql = "assignee = currentUser() AND statusCategory != Done AND Sprint is not EMPTY ORDER BY updated DESC"
+        val url = "https://${dataStore.getStore.atlassianHost}/rest/api/3/search/jql"
+
+        val response = getRequest(url) {
+            parameter("jql", jql)
+            parameter("fields", "summary,status,assignee,issuetype")
+            parameter("maxResults", 50)
+        }
+
+        if (response.status != HttpStatusCode.OK) {
+            Logger.err("Error getting sprint issues: ${response.bodyAsText()}")
+            return emptyList()
+        }
+
+        val body: SprintIssuesResponse = json.decodeFromString<SprintIssuesResponse>(response.body())
+        return body.issues
+    }
+
     suspend fun hasWorklog(issueId: String, date: LocalDate): Boolean {
 
         val startedAfter = date.atStartOfDay().atZone(ZoneId.systemDefault()).toEpochSecond() * 1000

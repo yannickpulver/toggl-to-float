@@ -5,18 +5,25 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.Button
+import androidx.compose.material.Card
 import androidx.compose.material.Checkbox
+import androidx.compose.material.DropdownMenu
+import androidx.compose.material.DropdownMenuItem
 import androidx.compose.material.Icon
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.OutlinedButton
 import androidx.compose.material.Text
 import androidx.compose.material.TextButton
+import androidx.compose.material.contentColorFor
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -24,9 +31,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.appswithlove.DoOnFocus
+import com.appswithlove.atlassian.JiraIssue
+import com.appswithlove.ui.theme.LightBlue
 import com.google.accompanist.flowlayout.FlowRow
 import com.vanpra.composematerialdialogs.DesktopWindowPosition
 import com.vanpra.composematerialdialogs.MaterialDialog
@@ -39,7 +51,11 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
 @Composable
-fun AddTimeAtlassian(modifier: Modifier = Modifier, viewModel: AtlassianViewModel = koinInject()) {
+fun AddTimeAtlassian(
+    modifier: Modifier = Modifier,
+    weeklyOverview: Map<com.appswithlove.floaat.FloatProject?, List<com.appswithlove.floaat.FloatOverview>> = emptyMap(),
+    viewModel: AtlassianViewModel = koinInject()
+) {
     val state = viewModel.state.collectAsState()
 
     DoOnFocus { viewModel.refresh() }
@@ -80,7 +96,166 @@ fun AddTimeAtlassian(modifier: Modifier = Modifier, viewModel: AtlassianViewMode
                 "All worklogs starting with an issue id (e.g. '${state.value.prefix}-123') will be added to Jira.",
                 style = MaterialTheme.typography.body2
             )
+
             AddAtlassianTimeEntries(viewModel::addTimeEntries, state.value.missingEntryDates)
+
+            // Toggl Project Picker
+            if (state.value.togglProjects.isNotEmpty()) {
+                // Filter projects to only show those in weekly overview
+                // Extract all relevant IDs (both phase and project IDs) from weekly overview
+                val relevantIds = weeklyOverview.values.flatten()
+                    .mapNotNull { it.phase?.phase_id ?: it.project?.project_id }
+                    .toSet()
+
+                val filteredProjects = if (relevantIds.isNotEmpty()) {
+                    state.value.togglProjects.filter { togglProject ->
+                        // Check if the toggl project name contains any of the relevant IDs
+                        relevantIds.any { id -> togglProject.name.contains("[$id]") }
+                    }
+                } else {
+                    state.value.togglProjects
+                }
+
+                TogglProjectPicker(
+                    projects = filteredProjects,
+                    selectedProjectId = state.value.selectedTogglProjectId,
+                    onProjectSelected = viewModel::setTogglProject
+                )
+            }
+
+            if (state.value.sprintIssues.isNotEmpty()) {
+                Column {
+                    val tasks = state.value.sprintIssues.filter {
+                        it.fields.issuetype?.name?.equals("Task", ignoreCase = true) == true
+                    }
+                        .sortedBy { it.fields.status.name }
+
+                    if (tasks.isNotEmpty()) {
+                        tasks.forEach { issue ->
+                            SprintIssueCard(
+                                issue = issue,
+                                isTask = true,
+                                onClick = { viewModel.startTimeTracking(issue.key, issue.fields.summary) }
+                            )
+                        }
+                    }
+
+                    val stories = state.value.sprintIssues.filter {
+                        it.fields.issuetype?.name?.equals("Story", ignoreCase = true) == true
+                    }
+                        .sortedBy { it.fields.status.name }
+
+                    if (stories.isNotEmpty()) {
+                        stories.forEach { issue ->
+                            SprintIssueCard(
+                                issue = issue,
+                                isTask = false,
+                                onClick = { viewModel.startTimeTracking(issue.key, issue.fields.summary) }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TogglProjectPicker(
+    projects: List<com.appswithlove.toggl.Project>,
+    selectedProjectId: Int?,
+    onProjectSelected: (Int?) -> Unit
+) {
+    val expanded = remember { mutableStateOf(false) }
+    val selectedProject = projects.find { it.id == selectedProjectId }
+
+    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+        Text(
+            "Toggl Project for Time Tracking",
+            style = MaterialTheme.typography.caption,
+            modifier = Modifier.padding(bottom = 4.dp)
+        )
+        OutlinedButton(
+            onClick = { expanded.value = true },
+            modifier = Modifier.fillMaxWidth().height(40.dp)
+        ) {
+            Text(
+                selectedProject?.name ?: "Select a project...",
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.body2
+            )
+            Icon(Icons.Default.ArrowDropDown, contentDescription = null, modifier = Modifier.size(20.dp))
+        }
+
+        DropdownMenu(
+            expanded = expanded.value,
+            onDismissRequest = { expanded.value = false }
+        ) {
+            projects.filter { it.active }.forEach { project ->
+                DropdownMenuItem(
+                    onClick = {
+                        onProjectSelected(project.id)
+                        expanded.value = false
+                    }
+                ) {
+                    Text(project.name)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SprintIssueCard(issue: JiraIssue, isTask: Boolean, onClick: () -> Unit) {
+    val cardColor = if (isTask) {
+        LightBlue
+    } else {
+        MaterialTheme.colors.primary.copy(alpha = 0.2f)
+    }
+
+    val contentColor = contentColorFor(cardColor)
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+            .clickable(onClick = onClick),
+        elevation = 0.dp,
+        backgroundColor = cardColor,
+        contentColor = contentColor,
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(4.dp)
+    ) {
+        Column(modifier = Modifier.padding(8.dp, 4.dp)) {
+            Text(
+                text = issue.fields.summary,
+                style = if (isTask) MaterialTheme.typography.subtitle2 else MaterialTheme.typography.body2,
+                lineHeight = 18.sp,
+                maxLines = 2,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+            )
+
+            Row(
+                Modifier.padding(top = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Spacer(Modifier.weight(1f))
+                Text(
+                    "[${issue.key}]",
+                    style = MaterialTheme.typography.caption.copy(fontWeight = FontWeight.Normal),
+                    modifier = Modifier.alpha(0.8f),
+                )
+                Text(
+                    if (isTask) "Task" else "Story",
+                    style = MaterialTheme.typography.caption.copy(fontWeight = FontWeight.Normal),
+                    modifier = Modifier.alpha(0.8f),
+                )
+                Text(
+                    issue.fields.status.name,
+                    style = MaterialTheme.typography.caption,
+                    modifier = Modifier
+                )
+            }
         }
     }
 }
@@ -196,7 +371,16 @@ private fun Form(
     }
 
 
-    Button(onClick = { save(email.value, apiKey.value, host.value, prefix.value, checked.value, quote.value) }) {
+    Button(onClick = {
+        save(
+            email.value,
+            apiKey.value,
+            host.value,
+            prefix.value,
+            checked.value,
+            quote.value
+        )
+    }) {
         Text("Save")
     }
 }
