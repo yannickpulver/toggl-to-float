@@ -1,15 +1,15 @@
 package com.appswithlove.ui
 
 import TimeEntryForPublishing
-import TimeEntryUpdate
-import androidx.compose.ui.graphics.toArgb
 import com.appswithlove.floaat.FloatPeopleItem
 import com.appswithlove.floaat.FloatRepo
-import com.appswithlove.floaat.hex2Rgb
+import com.appswithlove.floaat.SelectablePhase
+import com.appswithlove.floaat.SelectableProject
 import com.appswithlove.store.DataStore
-import com.appswithlove.toggl.TogglProjectCreate
-import com.appswithlove.toggl.TogglRepo
-import com.appswithlove.toggl.TogglWorkspaceItem
+import com.appswithlove.timetracking.ActiveTimer
+import com.appswithlove.timetracking.EntryRecommendation
+import com.appswithlove.timetracking.LocalTimeEntry
+import com.appswithlove.timetracking.TimeTrackingRepository
 import com.appswithlove.ui.feature.snackbar.SnackbarStateHolder
 import com.appswithlove.ui.feature.update.GithubRepo
 import kotlinx.coroutines.CoroutineScope
@@ -20,9 +20,14 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
+import kotlinx.datetime.toJavaLocalDate
+import kotlinx.datetime.toKotlinLocalDate
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.temporal.WeekFields
@@ -33,19 +38,63 @@ import kotlin.time.toDuration
 class MainViewModel constructor(
     private val dataStore: DataStore,
     private val floatRepo: FloatRepo,
-    private val togglRepo: TogglRepo,
-    private val githubRepo: GithubRepo
+    private val githubRepo: GithubRepo,
+    private val timeTrackingRepo: TimeTrackingRepository
 ) {
 
     private var _initDone: Boolean = false
     private var _lastRefresh: LocalDateTime? = null
 
     private val _loadingCounter = MutableStateFlow(0)
+    private val _selectedDate = MutableStateFlow(LocalDate.now())
+    private val _currentTime = MutableStateFlow(Clock.System.now())
 
     private val _state = MutableStateFlow(MainState(loading = true))
+
+    // Reactive entries based on selected date
+    private val entriesFlow = _selectedDate.flatMapLatest { date ->
+        timeTrackingRepo.getEntriesForDateFlow(date.toKotlinLocalDate())
+    }
+
+    // Reactive active timer
+    private val activeTimerFlow = timeTrackingRepo.getActiveTimerFlow()
+
+    // Reactive projects from cache
+    private val projectsFlow = timeTrackingRepo.getSelectableProjectsFlow()
+
+    // Reactive phases from cache
+    private val phasesFlow = timeTrackingRepo.getSelectablePhasesFlow()
+
     val state: StateFlow<MainState> =
-        combine(_state, Logger.logs, _loadingCounter) { state, logs, loadingCounter ->
-            state.copy(logs = logs, loading = loadingCounter > 0)
+        combine(
+            _state,
+            Logger.logs,
+            _loadingCounter,
+            _currentTime,
+            entriesFlow,
+            activeTimerFlow,
+            projectsFlow,
+            phasesFlow
+        ) { values ->
+            @Suppress("UNCHECKED_CAST")
+            val baseState = values[0] as MainState
+            val logs = values[1] as List<Pair<String, LogLevel>>
+            val loadingCounter = values[2] as Int
+            val currentTime = values[3] as Instant
+            val entries = values[4] as List<LocalTimeEntry>
+            val timer = values[5] as ActiveTimer?
+            val projects = values[6] as List<SelectableProject>
+            val phases = values[7] as List<SelectablePhase>
+
+            baseState.copy(
+                logs = logs,
+                loading = loadingCounter > 0,
+                currentTime = currentTime,
+                localTimeEntries = entries,
+                activeTimer = timer,
+                floatProjects = projects.ifEmpty { baseState.floatProjects },
+                floatPhases = phases.ifEmpty { baseState.floatPhases }
+            )
         }.stateIn(
             scope = CoroutineScope(Dispatchers.Default),
             started = SharingStarted.WhileSubscribed(5000),
@@ -63,6 +112,14 @@ class MainViewModel constructor(
                 }
             }
         }
+
+        // Timer tick every second when there's an active timer
+        CoroutineScope(Dispatchers.Default).launch {
+            while (true) {
+                delay(1000)
+                _currentTime.value = Clock.System.now()
+            }
+        }
     }
 
     private suspend fun loadData() {
@@ -70,6 +127,7 @@ class MainViewModel constructor(
         getMissingEntries()
         getWeeklyOverview()
         checkLastRelease()
+        loadFloatProjects()
     }
 
     private suspend fun checkLastRelease() {
@@ -81,9 +139,10 @@ class MainViewModel constructor(
         CoroutineScope(Dispatchers.IO).launch {
             val start = LocalDate.now().minusWeeks(2)
             val end = LocalDate.now()
-            val entries = floatRepo.getDatesWithoutTimeEntries(start = start, end = end.plusDays(1))
-            val togglEntries = togglRepo.getDatesWithTimeEntries(start, end.plusDays(1))
-            val missingEntries = entries.filter { togglEntries.contains(it) }
+            val missingEntries = timeTrackingRepo.getDatesWithUnpublishedEntries(
+                start.toKotlinLocalDate(),
+                end.toKotlinLocalDate()
+            ).map { it.toJavaLocalDate() }
             _state.update { it.copy(missingEntryDates = missingEntries.sorted()) }
         }
     }
@@ -153,54 +212,10 @@ class MainViewModel constructor(
         Logger.clear()
         dataStore.clear()
         refresh(true)
-        _state.update { it.copy(togglApiKey = null, floatApiKey = null, peopleId = null) }
+        _state.update { it.copy(floatApiKey = null, peopleId = null) }
     }
 
-    fun fetchProjects() {
-        CoroutineScope(Dispatchers.IO).launch {
-            withLoading {
-                fetchProjectsInt()
-            }
-        }
-    }
-
-    fun archiveProjects() {
-        CoroutineScope(Dispatchers.IO).launch {
-            togglRepo.getTogglProjects()
-        }
-    }
-
-    fun removeProjects() {
-        CoroutineScope(Dispatchers.IO).launch {
-            removeOldProjects()
-        }
-    }
-
-    fun addTimeEntries(from: LocalDate?) {
-        if (from == null) {
-            CoroutineScope(Dispatchers.IO).launch {
-                SnackbarStateHolder.error("Double check your date")
-            }
-            return
-        }
-
-        CoroutineScope(Dispatchers.IO).launch {
-            withLoading {
-                try {
-                    val success = addTimeEntries(from)
-                    if (success && state.value.missingEntryDates.contains(from)) {
-                        _state.update { it.copy(missingEntryDates = it.missingEntryDates.filter { it != from }) }
-                    }
-                } catch (exception: java.lang.Exception) {
-                    Logger.err("Double check your dates to have format YYYY-MM-DD")
-                    exception.message?.let { Logger.err(it) }
-                }
-            }
-        }
-    }
-
-    fun save(togglApiKey: String?, floatApiKey: String?, peopleItem: FloatPeopleItem?) {
-        togglApiKey?.let { dataStore.setTogglApiKey(togglApiKey) }
+    fun save(floatApiKey: String?, peopleItem: FloatPeopleItem?) {
         floatApiKey?.let { dataStore.setFloatApiKey(floatApiKey) }
         peopleItem?.let { dataStore.setFloatClientId(peopleItem.people_id) }
         refresh(true)
@@ -215,7 +230,6 @@ class MainViewModel constructor(
             val store = dataStore.getStore
             _state.update {
                 it.copy(
-                    togglApiKey = store.togglKey,
                     floatApiKey = store.floatKey,
                     peopleId = store.floatClientId,
                     people = if (store.shouldLoadPeople) floatRepo.getFloatPeople() else emptyList(),
@@ -230,154 +244,201 @@ class MainViewModel constructor(
         }
     }
 
-    private suspend fun fetchProjectsInt() {
-        val workspace =
-            togglRepo.getWorkspaces() ?: throw Exception("Couldn't get Toggle Workspace")
-
-        // projects
-        val floatProjects = floatRepo.getFloatProjects().map { it.asNumberList }.flatten()
-        val togglProjects = togglRepo.getTogglProjects()
-
-        val modifiedProjects =
-            floatProjects.filter { floatProject -> togglProjects.any { it.projectIdNew == floatProject.id && (it.name != floatProject.name || it.active != floatProject.isActive) } }
-                .map { floatProject ->
-                    val colorString = floatColorToTogglColor(floatProject.color)
-                    TogglProjectCreate(
-                        name = floatProject.name,
-                        color = colorString,
-                        id = togglProjects.firstOrNull { it.projectIdNew == floatProject.id }?.id
-                            ?: -1,
-                        active = floatProject.isActive
-                    )
-                }
-
-        val newProjects =
-            floatProjects.filterNot { floatProject -> togglProjects.any { it.projectIdNew == floatProject.id } }
-                .filter { it.isActive }
-                .map {
-                    val colorString = floatColorToTogglColor(it.color)
-                    TogglProjectCreate(name = it.name, color = colorString, id = it.id)
-                }
-
-        if (newProjects.isNotEmpty()) {
-            Logger.log("⬆️ Syncing new Float projects to Toggl — (${newProjects.size}) of ${floatProjects.size}")
-            Logger.log(Logger.SPACER)
-            togglRepo.pushProjectsToToggl(workspace.id, newProjects)
-        }
-        if (modifiedProjects.isNotEmpty()) {
-            Logger.log("⬆️ Syncing modified Float projects to Toggl — (${newProjects.size}) of ${floatProjects.size}")
-            togglRepo.putProjectsToToggl(workspace.id, modifiedProjects)
-        }
-
-        // tags
-        val togglTags = togglRepo.getTogglTags()
-        val floatTags = floatRepo.getFloatTaskNames()
-
-        val newTags = floatTags.filterNot { floatTag -> togglTags.any { it.name == floatTag } }
-        if (newTags.isNotEmpty()) {
-            Logger.log("⬆️ Syncing new Float tags to Toggl")
-            togglRepo.pushTagsToToggl(workspace.id, newTags)
-        }
-
-        // time entries
-        migrateTimeEntries(workspace)
-
-        // clean old projects
-        removeOldProjects()
-
-        Logger.log("🎉 Sync Complete.")
-    }
-
     fun clearLogs() {
         Logger.clear()
     }
 
-    suspend fun removeOldProjects() {
-        val workspace =
-            togglRepo.getWorkspaces() ?: throw Exception("Couldn't get Toggle Workspace")
-        val togglProjects = togglRepo.getTogglProjects()
-
-        val toremove = togglProjects.filter { it.projectId != null && it.projectIdNew == null }
-        togglRepo.deleteProjects(workspace.id, toremove.map { it.id })
+    fun startTimer(id: Int, tag: String) {
+        CoroutineScope(Dispatchers.IO).launch {
+            startLocalTimer(phaseId = id, description = null, tags = if (tag.isNotEmpty()) listOf(tag) else emptyList())
+        }
     }
 
-    suspend fun migrateTimeEntries(workspace: TogglWorkspaceItem) {
-        Logger.log("🐧 Checking for migrations...")
-        delay(2000)
-        // Modify entries
-        val entries = togglRepo.getTogglTimeEntries(LocalDate.now().minusMonths(2), LocalDate.now())
-        val modifiedEntries = mutableListOf<Pair<Long, TimeEntryUpdate>>()
+    // Date Navigation
+    fun selectDate(date: LocalDate) {
+        _selectedDate.value = date
+        _state.update { it.copy(selectedDate = date) }
+    }
 
-        val projects = togglRepo.getTogglProjects()
+    fun goToPreviousDay() {
+        selectDate(_state.value.selectedDate.minusDays(1))
+    }
 
-        entries.forEachIndexed { index, it ->
-            val project = it.project_id?.let { id -> projects.find { it.id == id } }
-            if (project != null) {
-                val id = project.phaseId ?: project.projectId
-                val projectId = projects.find { it.name.contains("[$id]") }?.id
-                if (projectId != null) {
-                    modifiedEntries.add(it.id to TimeEntryUpdate(projectId))
+    fun goToNextDay() {
+        selectDate(_state.value.selectedDate.plusDays(1))
+    }
+
+    fun goToToday() {
+        selectDate(LocalDate.now())
+    }
+
+    // Timer Control
+    fun startLocalTimer(projectId: Int? = null, phaseId: Int? = null, description: String? = null, tags: List<String> = emptyList()) {
+        CoroutineScope(Dispatchers.IO).launch {
+            timeTrackingRepo.startTimer(projectId, phaseId, description, tags)
+            Logger.log("Timer started")
+        }
+    }
+
+    fun stopLocalTimer() {
+        CoroutineScope(Dispatchers.IO).launch {
+            val entry = timeTrackingRepo.stopTimer()
+            if (entry != null) {
+                Logger.log("Timer stopped - ${entry.durationFormatted}")
+            }
+        }
+    }
+
+    private fun loadFloatProjects() {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                Logger.log("Loading Float projects...")
+                val projects = floatRepo.getFloatProjects()
+
+                // Cache to database
+                timeTrackingRepo.cacheProjects(projects.map { it.project })
+                timeTrackingRepo.cachePhases(projects.flatMap { it.phases })
+
+                Logger.log("Cached ${projects.size} projects")
+            } catch (e: Exception) {
+                Logger.log("Failed to load Float projects: ${e.message}")
+            }
+        }
+    }
+
+    // Recommendations
+    fun getRecommendations(query: String): List<EntryRecommendation> {
+        return timeTrackingRepo.getRecommendations(query)
+    }
+
+    // Entry CRUD
+    fun addEntry(
+        description: String?,
+        projectId: Int?,
+        phaseId: Int?,
+        startTime: kotlinx.datetime.Instant,
+        endTime: kotlinx.datetime.Instant,
+        tags: List<String> = emptyList()
+    ) {
+        CoroutineScope(Dispatchers.IO).launch {
+            val durationSeconds = (endTime - startTime).inWholeSeconds.toInt()
+            timeTrackingRepo.insertEntry(
+                description = description,
+                projectId = projectId,
+                phaseId = phaseId,
+                startTime = startTime,
+                endTime = endTime,
+                durationSeconds = durationSeconds,
+                tags = tags
+            )
+            Logger.log("Entry added")
+        }
+    }
+
+    fun updateEntry(entry: LocalTimeEntry) {
+        CoroutineScope(Dispatchers.IO).launch {
+            timeTrackingRepo.updateEntry(entry)
+            Logger.log("Entry updated")
+        }
+    }
+
+    fun updateEntry(id: Long, newStartTime: Instant, newEndTime: Instant) {
+        CoroutineScope(Dispatchers.IO).launch {
+            timeTrackingRepo.updateEntryTimes(id, newStartTime, newEndTime)
+            Logger.log("Entry times updated")
+        }
+    }
+
+    fun updateEntryFull(
+        id: Long,
+        projectId: Int?,
+        phaseId: Int?,
+        description: String?,
+        startTime: Instant,
+        endTime: Instant
+    ) {
+        CoroutineScope(Dispatchers.IO).launch {
+            timeTrackingRepo.updateEntryFull(id, projectId, phaseId, description, startTime, endTime)
+            Logger.log("Entry updated")
+        }
+    }
+
+    fun updateTimerStartTime(newStartTime: Instant) {
+        CoroutineScope(Dispatchers.IO).launch {
+            timeTrackingRepo.updateActiveTimerStartTime(newStartTime)
+            Logger.log("Timer start time updated")
+        }
+    }
+
+    fun deleteEntry(id: Long) {
+        CoroutineScope(Dispatchers.IO).launch {
+            timeTrackingRepo.deleteEntry(id)
+            Logger.log("Entry deleted")
+        }
+    }
+
+    // Publishing
+    fun publishToFloat(date: LocalDate?) {
+        if (date == null) {
+            CoroutineScope(Dispatchers.IO).launch {
+                SnackbarStateHolder.error("Select a date first")
+            }
+            return
+        }
+
+        CoroutineScope(Dispatchers.IO).launch {
+            withLoading {
+                try {
+                    val kotlinDate = date.toKotlinLocalDate()
+                    val entries = timeTrackingRepo.getUnpublishedToFloatForDate(kotlinDate)
+
+                    if (entries.isEmpty()) {
+                        Logger.log("No unpublished entries for $date")
+                        return@withLoading
+                    }
+
+                    val timeEntriesOnDate = floatRepo.getFloatTimeEntries(date, date)
+                    if (timeEntriesOnDate.isNotEmpty()) {
+                        Logger.err("There are already time entries on Float for $date")
+                        return@withLoading
+                    }
+
+                    val data = entries.mapNotNull { entry ->
+                        val phaseId = entry.phaseId ?: return@mapNotNull null
+                        TimeEntryForPublishing(
+                            timeEntry = entry.toTogglTimeEntry(),
+                            id = phaseId
+                        )
+                    }
+
+                    if (data.isEmpty()) {
+                        Logger.err("No entries with valid phase IDs to publish")
+                        return@withLoading
+                    }
+
+                    val success = floatRepo.pushToFloat(date, data)
+                    if (success) {
+                        entries.forEach { timeTrackingRepo.markSyncedToFloat(it.id) }
+                        if (_state.value.missingEntryDates.contains(date)) {
+                            _state.update { it.copy(missingEntryDates = it.missingEntryDates.filter { d -> d != date }) }
+                        }
+                    }
+                } catch (e: Exception) {
+                    Logger.err("Error publishing: ${e.message}")
                 }
             }
         }
-        togglRepo.putTimeEntries(workspace.id, modifiedEntries)
     }
 
-    fun startTimer(id: Int, tag: String) {
-
-        CoroutineScope(Dispatchers.IO).launch {
-            val workspace =
-                togglRepo.getWorkspaces() ?: throw Exception("Couldn't get Toggle Workspace")
-            // get id of project or phase
-            val project = togglRepo.getTogglProjects().first { it.name.contains(id.toString()) }
-
-            // find toggl project that contains this id
-            togglRepo.startTimer(workspace.id, project, tag)
+    // Helper to get project/phase name for display
+    fun getProjectName(projectId: Int?, phaseId: Int?): String? {
+        val st = state.value
+        val projectName = st.floatProjects.find { it.projectId == projectId }?.name
+        val phaseName = phaseId?.let { id -> st.floatPhases.find { it.phaseId == id }?.name }
+        return when {
+            projectName != null && phaseName != null -> "$projectName - $phaseName"
+            projectName != null -> projectName
+            else -> null
         }
-    }
-
-    private fun floatColorToTogglColor(colorString: String?): String? {
-        val color = try {
-            hex2Rgb(colorString)?.let { togglRepo.getClosestTogglColor(it) }
-        } catch (exception: Exception) {
-            null
-        }
-        return color?.toArgb()?.let { Integer.toHexString(it) }?.drop(2)?.let { "#$it" }
-    }
-
-    private suspend fun addTimeEntries(date: LocalDate): Boolean {
-        val timeEntries = togglRepo.getTogglTimeEntries(date, date)
-        Logger.log("⏱ Found ${timeEntries.size} time entries for $date on Toggl!")
-        if (timeEntries.isEmpty()) {
-            Logger.log("Noting to do here. Do you even work?")
-            return true
-        }
-        val projects = togglRepo.getTogglProjects()
-        val pairs =
-            timeEntries.map { time -> time to projects.firstOrNull { it.id == time.project_id } }
-
-        val timeEntriesOnDate = floatRepo.getFloatTimeEntries(date, date)
-        if (timeEntriesOnDate.isNotEmpty()) {
-            Logger.log(Logger.SPACER)
-            Logger.err("⚠️ There are already existing time entries for $date. Please remove them and try again.")
-            return false
-        }
-
-        if (pairs.any { it.second?.projectIdNew == null }) {
-            Logger.err("⚠️ Some time entries don't have a valid project assigned. Please fix this and try again.")
-            pairs.filter { it.second?.projectIdNew == null }.forEach {
-                Logger.log("  - ${it.first.description}")
-            }
-            return false
-        }
-
-        val data = pairs.map { (timeEntry, project) ->
-            TimeEntryForPublishing(
-                timeEntry = timeEntry,
-                id = project?.projectIdNew ?: -1,
-            )
-        }
-
-        return floatRepo.pushToFloat(date, data)
     }
 }

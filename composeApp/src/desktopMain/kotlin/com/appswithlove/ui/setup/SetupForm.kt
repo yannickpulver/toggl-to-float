@@ -17,21 +17,15 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.appswithlove.floaat.FloatPeopleItem
 import com.appswithlove.ui.MainState
-import com.appswithlove.ui.utils.openInBrowser
-import java.net.URI
 import java.time.LocalDate
 
 @Composable
 fun SetupForm(
     state: MainState,
-    save: (String?, String?, FloatPeopleItem?) -> Unit
+    save: (String?, FloatPeopleItem?) -> Unit
 ) {
-    val togglApiKey = remember { mutableStateOf(state.togglApiKey) }
     val floatApiKey = remember { mutableStateOf(state.floatApiKey) }
     val client = remember { mutableStateOf(state.people.find { it.people_id == state.peopleId }) }
-    LaunchedEffect(state.togglApiKey) {
-        togglApiKey.value = state.togglApiKey
-    }
     LaunchedEffect(state.floatApiKey) {
         floatApiKey.value = state.floatApiKey
     }
@@ -39,13 +33,9 @@ fun SetupForm(
         client.value = state.people.find { it.people_id == state.peopleId }
     }
 
-
     Text("Happy ${LocalDate.now().dayOfWeek.toString().lowercase().capitalize()}! 🎉", style = MaterialTheme.typography.h4)
 
     when {
-        state.togglApiKey.isNullOrEmpty() -> {
-            TogglSetup(key = togglApiKey.value.orEmpty(), onChange = { togglApiKey.value = it })
-        }
         state.floatApiKey.isNullOrEmpty() -> {
             FloatSetup(key = floatApiKey.value.orEmpty(), onChange = { floatApiKey.value = it })
         }
@@ -55,7 +45,7 @@ fun SetupForm(
     }
 
     if (!state.isValid) {
-        Button(onClick = { save(togglApiKey.value, floatApiKey.value, client.value) }) {
+        Button(onClick = { save(floatApiKey.value, client.value) }) {
             Text("Save")
         }
     }
@@ -74,26 +64,6 @@ private fun FloatSetup(key: String, onChange: (String) -> Unit) {
             Text("Float API Key")
         },
         visualTransformation = PasswordVisualTransformation()
-    )
-}
-
-@Composable
-private fun TogglSetup(key: String, onChange: (String) -> Unit) {
-    Text(
-        "🔑 Setup Toggl API Key: Please visit https://track.toggl.com/profile (click the button below) and copy the key from the 'API Token' section here & paste it in the field below.",
-        modifier = Modifier.fillMaxWidth(1f)
-    )
-    OutlinedButton({ openInBrowser(URI("https://track.toggl.com/profile")) }) {
-        Text("🌍 Open Toggl Website")
-    }
-    OutlinedTextField(
-        value = key,
-        onValueChange = onChange,
-        label = {
-            Text("Toggl API Key")
-        },
-        visualTransformation = PasswordVisualTransformation(),
-        modifier = Modifier.fillMaxWidth()
     )
 }
 

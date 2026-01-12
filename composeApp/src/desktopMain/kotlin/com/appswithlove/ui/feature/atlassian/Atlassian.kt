@@ -14,8 +14,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material.Button
 import androidx.compose.material.Card
 import androidx.compose.material.Checkbox
-import androidx.compose.material.DropdownMenu
-import androidx.compose.material.DropdownMenuItem
 import androidx.compose.material.Icon
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.OutlinedButton
@@ -23,7 +21,6 @@ import androidx.compose.material.Text
 import androidx.compose.material.TextButton
 import androidx.compose.material.contentColorFor
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -99,30 +96,6 @@ fun AddTimeAtlassian(
 
             AddAtlassianTimeEntries(viewModel::addTimeEntries, state.value.missingEntryDates)
 
-            // Toggl Project Picker
-            if (state.value.togglProjects.isNotEmpty()) {
-                // Filter projects to only show those in weekly overview
-                // Extract all relevant IDs (both phase and project IDs) from weekly overview
-                val relevantIds = weeklyOverview.values.flatten()
-                    .mapNotNull { it.phase?.phase_id ?: it.project?.project_id }
-                    .toSet()
-
-                val filteredProjects = if (relevantIds.isNotEmpty()) {
-                    state.value.togglProjects.filter { togglProject ->
-                        // Check if the toggl project name contains any of the relevant IDs
-                        relevantIds.any { id -> togglProject.name.contains("[$id]") }
-                    }
-                } else {
-                    state.value.togglProjects
-                }
-
-                TogglProjectPicker(
-                    projects = filteredProjects,
-                    selectedProjectId = state.value.selectedTogglProjectId,
-                    onProjectSelected = viewModel::setTogglProject
-                )
-            }
-
             if (state.value.sprintIssues.isNotEmpty()) {
                 Column {
                     val tasks = state.value.sprintIssues.filter {
@@ -154,51 +127,6 @@ fun AddTimeAtlassian(
                             )
                         }
                     }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun TogglProjectPicker(
-    projects: List<com.appswithlove.toggl.Project>,
-    selectedProjectId: Int?,
-    onProjectSelected: (Int?) -> Unit
-) {
-    val expanded = remember { mutableStateOf(false) }
-    val selectedProject = projects.find { it.id == selectedProjectId }
-
-    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
-        Text(
-            "Toggl Project for Time Tracking",
-            style = MaterialTheme.typography.caption,
-            modifier = Modifier.padding(bottom = 4.dp)
-        )
-        OutlinedButton(
-            onClick = { expanded.value = true },
-            modifier = Modifier.fillMaxWidth().height(40.dp)
-        ) {
-            Text(
-                selectedProject?.name ?: "Select a project...",
-                modifier = Modifier.weight(1f),
-                style = MaterialTheme.typography.body2
-            )
-            Icon(Icons.Default.ArrowDropDown, contentDescription = null, modifier = Modifier.size(20.dp))
-        }
-
-        DropdownMenu(
-            expanded = expanded.value,
-            onDismissRequest = { expanded.value = false }
-        ) {
-            projects.filter { it.active }.forEach { project ->
-                DropdownMenuItem(
-                    onClick = {
-                        onProjectSelected(project.id)
-                        expanded.value = false
-                    }
-                ) {
-                    Text(project.name)
                 }
             }
         }

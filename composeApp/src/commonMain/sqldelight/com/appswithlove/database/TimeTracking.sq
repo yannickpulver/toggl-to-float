@@ -1,0 +1,227 @@
+-- Time entries table
+CREATE TABLE timeEntry (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    description TEXT,
+    project_id INTEGER,
+    phase_id INTEGER,
+    start_time TEXT NOT NULL,
+    end_time TEXT,
+    duration_seconds INTEGER NOT NULL DEFAULT 0,
+    tags TEXT,
+    created_at TEXT NOT NULL,
+    modified_at TEXT NOT NULL,
+    synced_to_float INTEGER NOT NULL DEFAULT 0,
+    synced_to_jira INTEGER NOT NULL DEFAULT 0
+);
+
+-- Active timer (only one at a time, enforced by id=1)
+CREATE TABLE activeTimer (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    project_id INTEGER,
+    phase_id INTEGER,
+    description TEXT,
+    start_time TEXT NOT NULL,
+    tags TEXT
+);
+
+-- Float project cache
+CREATE TABLE floatProject (
+    project_id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL,
+    color TEXT,
+    active INTEGER NOT NULL DEFAULT 1,
+    cached_at TEXT NOT NULL
+);
+
+-- Float phase cache
+CREATE TABLE floatPhase (
+    phase_id INTEGER PRIMARY KEY,
+    project_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    color TEXT,
+    active INTEGER NOT NULL DEFAULT 1,
+    cached_at TEXT NOT NULL
+);
+
+-- Indexes
+CREATE INDEX idx_time_entry_date ON timeEntry(start_time);
+CREATE INDEX idx_time_entry_sync ON timeEntry(synced_to_float, synced_to_jira);
+CREATE INDEX idx_phase_project ON floatPhase(project_id);
+
+-- Time entry queries
+getTimeEntriesForDate:
+SELECT * FROM timeEntry
+WHERE date(start_time) = date(:date)
+ORDER BY start_time ASC;
+
+getTimeEntriesForDateRange:
+SELECT * FROM timeEntry
+WHERE date(start_time) >= date(:startDate)
+AND date(start_time) <= date(:endDate)
+ORDER BY start_time ASC;
+
+getUnpublishedToFloat:
+SELECT * FROM timeEntry
+WHERE synced_to_float = 0 AND end_time IS NOT NULL;
+
+getUnpublishedToFloatForDate:
+SELECT * FROM timeEntry
+WHERE synced_to_float = 0 AND end_time IS NOT NULL
+AND date(start_time) = date(:date);
+
+getUnpublishedToJira:
+SELECT * FROM timeEntry
+WHERE synced_to_jira = 0 AND end_time IS NOT NULL
+AND description LIKE :prefix || '%';
+
+insertTimeEntry:
+INSERT INTO timeEntry (description, project_id, phase_id, start_time, end_time, duration_seconds, tags, created_at, modified_at, synced_to_float, synced_to_jira)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0);
+
+getLastInsertId:
+SELECT last_insert_rowid();
+
+updateTimeEntry:
+UPDATE timeEntry
+SET description = :description, project_id = :projectId, phase_id = :phaseId, start_time = :startTime, end_time = :endTime, duration_seconds = :durationSeconds, tags = :tags, modified_at = :modifiedAt
+WHERE id = :id;
+
+updateTimeEntryTimes:
+UPDATE timeEntry
+SET start_time = :startTime, end_time = :endTime, duration_seconds = :durationSeconds, modified_at = :modifiedAt
+WHERE id = :id;
+
+markSyncedToFloat:
+UPDATE timeEntry SET synced_to_float = 1 WHERE id = :id;
+
+markSyncedToJira:
+UPDATE timeEntry SET synced_to_jira = 1 WHERE id = :id;
+
+deleteTimeEntry:
+DELETE FROM timeEntry WHERE id = :id;
+
+getTimeEntryById:
+SELECT * FROM timeEntry WHERE id = :id;
+
+getDatesWithEntries:
+SELECT DISTINCT date(start_time) AS entry_date
+FROM timeEntry
+WHERE date(start_time) >= date(:startDate)
+AND date(start_time) <= date(:endDate);
+
+getDatesWithUnpublishedEntries:
+SELECT DISTINCT date(start_time) AS entry_date
+FROM timeEntry
+WHERE date(start_time) >= date(:startDate)
+AND date(start_time) <= date(:endDate)
+AND synced_to_float = 0
+AND end_time IS NOT NULL;
+
+-- Active timer queries
+getActiveTimer:
+SELECT * FROM activeTimer WHERE id = 1;
+
+startTimer:
+INSERT OR REPLACE INTO activeTimer (id, project_id, phase_id, description, start_time, tags)
+VALUES (1, :projectId, :phaseId, :description, :startTime, :tags);
+
+stopTimer:
+DELETE FROM activeTimer WHERE id = 1;
+
+updateActiveTimerStartTime:
+UPDATE activeTimer SET start_time = :startTime WHERE id = 1;
+
+-- Float project cache queries
+getActiveProjects:
+SELECT * FROM floatProject WHERE active = 1 ORDER BY name;
+
+getActivePhases:
+SELECT * FROM floatPhase WHERE active = 1;
+
+getProjectById:
+SELECT * FROM floatProject WHERE project_id = :projectId;
+
+getPhaseById:
+SELECT * FROM floatPhase WHERE phase_id = :phaseId;
+
+insertOrUpdateProject:
+INSERT OR REPLACE INTO floatProject (project_id, name, color, active, cached_at)
+VALUES (?, ?, ?, ?, ?);
+
+insertOrUpdatePhase:
+INSERT OR REPLACE INTO floatPhase (phase_id, project_id, name, color, active, cached_at)
+VALUES (?, ?, ?, ?, ?, ?);
+
+clearProjectCache:
+DELETE FROM floatProject;
+
+clearPhaseCache:
+DELETE FROM floatPhase;
+
+getProjectCacheAge:
+SELECT MIN(cached_at) AS oldest FROM floatProject LIMIT 1;
+
+-- Selectable projects (only projects for UI dropdown)
+getSelectableProjects:
+SELECT
+    p.project_id,
+    p.name,
+    p.color
+FROM floatProject p
+WHERE p.active = 1
+ORDER BY p.name;
+
+-- Selectable phases for a project
+getSelectablePhasesForProject:
+SELECT
+    ph.phase_id,
+    ph.project_id,
+    ph.name,
+    COALESCE(ph.color, p.color) AS color
+FROM floatPhase ph
+INNER JOIN floatProject p ON ph.project_id = p.project_id
+WHERE ph.active = 1 AND ph.project_id = :projectId
+ORDER BY ph.name;
+
+-- All selectable phases
+getAllSelectablePhases:
+SELECT
+    ph.phase_id,
+    ph.project_id,
+    ph.name,
+    COALESCE(ph.color, p.color) AS color
+FROM floatPhase ph
+INNER JOIN floatProject p ON ph.project_id = p.project_id
+WHERE ph.active = 1
+ORDER BY ph.name;
+
+-- Recommendation queries
+getRecentEntryRecommendations:
+SELECT DISTINCT
+    t.description,
+    t.project_id,
+    t.phase_id,
+    MAX(t.start_time) AS last_used
+FROM timeEntry t
+WHERE t.description IS NOT NULL
+  AND t.description != ''
+  AND date(t.start_time) >= date('now', '-30 days')
+  AND t.project_id IS NOT NULL
+GROUP BY t.description, t.project_id, t.phase_id
+ORDER BY last_used DESC
+LIMIT 20;
+
+searchRecommendations:
+SELECT DISTINCT
+    t.description,
+    t.project_id,
+    t.phase_id,
+    MAX(t.start_time) AS last_used
+FROM timeEntry t
+WHERE t.description IS NOT NULL
+  AND t.description LIKE :query || '%'
+  AND date(t.start_time) >= date('now', '-30 days')
+  AND t.project_id IS NOT NULL
+GROUP BY t.description, t.project_id, t.phase_id
+ORDER BY last_used DESC
+LIMIT 10;

@@ -1,11 +1,15 @@
 package com.appswithlove.ui
 
 import com.appswithlove.floaat.*
+import com.appswithlove.timetracking.ActiveTimer
+import com.appswithlove.timetracking.EntryRecommendation
+import com.appswithlove.timetracking.LocalTimeEntry
 import com.appswithlove.ui.feature.update.LatestRelease
+import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
 import java.time.LocalDate
 
 data class MainState(
-    val togglApiKey: String? = null,
     val floatApiKey: String? = null,
     val peopleId: Int? = null,
     val people: List<FloatPeopleItem> = emptyList(),
@@ -14,9 +18,16 @@ data class MainState(
     val lastEntryDate: LocalDate? = null,
     val weeklyOverview: Map<FloatProject?, List<FloatOverview>> = emptyMap(),
     val missingEntryDates: List<LocalDate> = emptyList(),
-    val latestRelease: LatestRelease? = null
+    val latestRelease: LatestRelease? = null,
+    val selectedDate: LocalDate = LocalDate.now(),
+    val localTimeEntries: List<LocalTimeEntry> = emptyList(),
+    val activeTimer: ActiveTimer? = null,
+    val floatProjects: List<SelectableProject> = emptyList(),
+    val floatPhases: List<SelectablePhase> = emptyList(),
+    val currentTime: Instant = Clock.System.now(),
+    val recommendations: List<EntryRecommendation> = emptyList()
 ) {
-    val isValid = !togglApiKey.isNullOrEmpty() && !floatApiKey.isNullOrEmpty() && peopleId != null && peopleId != -1
+    val isValid = !floatApiKey.isNullOrEmpty() && peopleId != null && peopleId != -1
 
     companion object {
         val Preview = MainState(weeklyOverview = mapOf(FloatProject.Preview to listOf(FloatOverview.Preview, FloatOverview.Preview), (FloatProject.Preview.copy(project_id = 2, color = "FCB9B2") to listOf(FloatOverview.Preview))))

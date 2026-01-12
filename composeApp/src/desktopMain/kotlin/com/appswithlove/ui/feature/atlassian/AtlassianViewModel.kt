@@ -1,9 +1,8 @@
 package com.appswithlove.ui.feature.atlassian
 
-import TimeEntry
 import com.appswithlove.atlassian.AtlassianRepository
 import com.appswithlove.store.DataStore
-import com.appswithlove.toggl.TogglRepo
+import com.appswithlove.timetracking.TimeTrackingRepository
 import com.appswithlove.ui.Logger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -12,6 +11,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Instant
+import kotlinx.datetime.toKotlinLocalDate
 import java.text.SimpleDateFormat
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -21,7 +21,7 @@ import kotlin.math.roundToInt
 import kotlin.time.Duration.Companion.seconds
 
 class AtlassianViewModel(
-    private val togglRepo: TogglRepo,
+    private val timeTrackingRepo: TimeTrackingRepository,
     private val repo: AtlassianRepository,
     private val dataStore: DataStore,
 ) {
@@ -44,20 +44,8 @@ class AtlassianViewModel(
         refreshFromStore()
         getMissingEntries()
         getSprintIssues()
-        loadTogglProjects()
 
         _lastRefresh = LocalDateTime.now()
-    }
-
-    private fun loadTogglProjects() {
-        CoroutineScope(Dispatchers.IO).launch {
-            try {
-                val projects = togglRepo.getTogglProjects()
-                _state.update { it.copy(togglProjects = projects) }
-            } catch (e: Exception) {
-                // Projects couldn't be loaded
-            }
-        }
     }
 
     private fun getSprintIssues() {
@@ -76,16 +64,16 @@ class AtlassianViewModel(
     private fun getMissingEntries() {
         val prefix = dataStore.getStore.atlassianPrefix ?: return
         CoroutineScope(Dispatchers.IO).launch {
-            val start = LocalDate.now().minusWeeks(2)
-            val end = LocalDate.now()
-            val togglEntries =
-                togglRepo.getDatesWithTimeEntriesAndPrefix(start, end.plusDays(1), prefix)
+            val entries = timeTrackingRepo.getUnpublishedToJira(prefix)
 
-            val missingEntries = togglEntries.filter { (date, description) ->
-                val issueId = getIssueId(prefix, description) ?: return@filter false
-                val hasWorklog = repo.hasWorklog(issueId, date)
-                !hasWorklog
-            }.map { it.first }
+            val missingEntries = entries.mapNotNull { entry ->
+                val description = entry.description ?: return@mapNotNull null
+                val issueId = getIssueId(prefix, description) ?: return@mapNotNull null
+                val date = entry.startTime.toString().substringBefore("T")
+                val localDate = LocalDate.parse(date)
+                val hasWorklog = repo.hasWorklog(issueId, localDate)
+                if (!hasWorklog) localDate else null
+            }
 
             _state.update { it.copy(missingEntryDates = missingEntries.toSet().sorted()) }
         }
@@ -100,40 +88,22 @@ class AtlassianViewModel(
                     host = atlassianHost,
                     prefix = atlassianPrefix,
                     round = attlasianRoundToQuarterHour,
-                    quote = atlassianQuote.toString(),
-                    selectedTogglProjectId = atlassianTogglProjectId
+                    quote = atlassianQuote.toString()
                 )
             }
         }
     }
 
-    fun setTogglProject(projectId: Int?) {
-        dataStore.setAtlassianTogglProjectId(projectId)
-        _state.update { it.copy(selectedTogglProjectId = projectId) }
-    }
-
     fun startTimeTracking(issueKey: String, issueName: String) {
-        val projectId = _state.value.selectedTogglProjectId
-        if (projectId == null) {
-            Logger.err("Please select a Toggl project first")
-            return
-        }
-
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val workspace = togglRepo.getWorkspaces()
-                if (workspace == null) {
-                    Logger.err("Couldn't get workspace")
-                    return@launch
-                }
-
-                val project = _state.value.togglProjects.find { it.id == projectId }
-                if (project == null) {
-                    Logger.err("Selected project not found")
-                    return@launch
-                }
-
-                togglRepo.startTimer(workspace.id, project, "$issueKey $issueName")
+                timeTrackingRepo.startTimer(
+                    projectId = null,
+                    phaseId = null,
+                    description = "$issueKey $issueName",
+                    tags = emptyList()
+                )
+                Logger.log("Timer started for $issueKey")
             } catch (e: Exception) {
                 Logger.err("Error starting time tracking: ${e.message}")
             }
@@ -167,59 +137,18 @@ class AtlassianViewModel(
         CoroutineScope(Dispatchers.IO).launch {
             var success = true
             withLoading {
-                val timeEntries = togglRepo.getTogglTimeEntries(date, date)
-
                 val prefix = dataStore.getStore.atlassianPrefix ?: throw Exception("Prefix not set")
-                val filteredEntries =
-                    timeEntries.filter { it.description?.startsWith(prefix) == true }
+                val localEntries = timeTrackingRepo.getEntriesForDate(date.toKotlinLocalDate())
+                val filteredEntries = localEntries.filter { it.description?.startsWith(prefix) == true }
 
-                // Sort entries by start time and adjust overlaps
-                val sortedEntries = filteredEntries.sortedBy { Instant.parse(it.start) }.map {
-                    val duration = (it.duration * dataStore.getStore.atlassianQuote).roundToInt()
-                    val timeSpentSeconds = if (dataStore.getStore.attlasianRoundToQuarterHour) {
-                        roundSecondsToNearestQuarterHour(duration)
-                    } else {
-                        duration
-                    }
-
-                    val start = if (dataStore.getStore.attlasianRoundToQuarterHour) {
-                        Instant.parse(it.start).roundToQuarter().toString()
-                    } else {
-                        it.start
-                    }
-
-                    it.copy(duration = timeSpentSeconds, start = start)
-
-                }
-                val adjustedEntries = mutableListOf<TimeEntry>()
-
-                for (entry in sortedEntries) {
-                    val startTime = Instant.parse(entry.start)
-                    val duration = entry.duration.toLong()
-
-                    // Find the next available start time that doesn't overlap
-                    var adjustedStartTime = startTime
-                    if (adjustedEntries.isNotEmpty()) {
-                        val lastEntry = adjustedEntries.last()
-                        val lastEndTime =
-                            Instant.parse(lastEntry.start).plus(lastEntry.duration.toLong().seconds)
-                        if (startTime < lastEndTime) {
-                            adjustedStartTime = lastEndTime
-                        }
-                    }
-
-                    // Create adjusted entry
-                    val adjustedEntry = entry.copy(
-                        start = adjustedStartTime.toString(),
-                        stop = adjustedStartTime.plus(duration.seconds).toString()
-                    )
-                    adjustedEntries.add(adjustedEntry)
+                if (filteredEntries.isEmpty()) {
+                    Logger.log("No entries with prefix $prefix found for $date")
+                    return@withLoading
                 }
 
-                // Post adjusted entries
-
-                val errors = adjustedEntries.mapNotNull {
-                    val description = it.description ?: return@mapNotNull null
+                // Check permissions first
+                val errors = filteredEntries.mapNotNull { entry ->
+                    val description = entry.description ?: return@mapNotNull null
                     val issueId = getIssueId(prefix, description) ?: return@mapNotNull null
                     issueId
                 }.toSet().filter {
@@ -231,21 +160,38 @@ class AtlassianViewModel(
                     Logger.err("Can't add worklog to these issues: $errors. Either set them to time logging or change to the correct issue id.")
                     success = false
                 } else {
-                    adjustedEntries.forEach {
-                        val time = Instant.parse(it.start)
-                        val formattedTime =
-                            SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ").format(Date(time.toEpochMilliseconds()))
-                        val description = it.description ?: return@forEach
+                    filteredEntries.forEach { entry ->
+                        val duration = (entry.durationSeconds * dataStore.getStore.atlassianQuote).roundToInt()
+                        val timeSpentSeconds = if (dataStore.getStore.attlasianRoundToQuarterHour) {
+                            roundSecondsToNearestQuarterHour(duration)
+                        } else {
+                            duration
+                        }
+
+                        val startTime = if (dataStore.getStore.attlasianRoundToQuarterHour) {
+                            entry.startTime.roundToQuarter()
+                        } else {
+                            entry.startTime
+                        }
+
+                        val formattedTime = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ")
+                            .format(Date(startTime.toEpochMilliseconds()))
+                        val description = entry.description ?: return@forEach
                         val issueId = getIssueId(prefix, description) ?: return@forEach
-                        success = success && repo.postWorklog(
+
+                        val posted = repo.postWorklog(
                             issueId,
                             formattedTime,
-                            it.duration,
+                            timeSpentSeconds,
                             description.substringAfter(issueId).trim()
                         )
+
+                        if (posted) {
+                            timeTrackingRepo.markSyncedToJira(entry.id)
+                        }
+                        success = success && posted
                     }
                 }
-
             }
 
             if (success && state.value.missingEntryDates.contains(date)) {
@@ -290,9 +236,7 @@ data class AtlassianState(
     val quote: String = "1.0",
     val round: Boolean = false,
     val missingEntryDates: List<LocalDate> = emptyList(),
-    val sprintIssues: List<com.appswithlove.atlassian.JiraIssue> = emptyList(),
-    val togglProjects: List<com.appswithlove.toggl.Project> = emptyList(),
-    val selectedTogglProjectId: Int? = null
+    val sprintIssues: List<com.appswithlove.atlassian.JiraIssue> = emptyList()
 ) {
 
     val incomplete get() = email.isNullOrBlank() || apiKey.isNullOrBlank() || host.isNullOrBlank() || prefix.isNullOrBlank()

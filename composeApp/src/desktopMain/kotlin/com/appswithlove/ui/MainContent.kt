@@ -31,8 +31,6 @@ import androidx.compose.material.OutlinedButton
 import androidx.compose.material.Scaffold
 import androidx.compose.material.Text
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.rounded.ArrowForward
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -48,27 +46,21 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import com.appswithlove.BuildConfig
 import com.appswithlove.floaat.FloatPeopleItem
-import com.appswithlove.ui.components.PrimaryButton
 import com.appswithlove.ui.feature.atlassian.AddTimeAtlassian
+import com.appswithlove.timetracking.EntryRecommendation
 import com.appswithlove.ui.feature.snackbar.SnackbarPublisher
+import com.appswithlove.ui.feature.timeentry.TimeTrackingSection
 import com.appswithlove.ui.feature.update.LatestRelease
 import com.appswithlove.ui.feature.yourweek.YourWeek
 import com.appswithlove.ui.setup.SetupForm
 import com.appswithlove.ui.theme.FloaterTheme
 import com.appswithlove.ui.utils.openInBrowser
-import com.google.accompanist.flowlayout.FlowRow
-import com.vanpra.composematerialdialogs.DesktopWindowPosition
-import com.vanpra.composematerialdialogs.MaterialDialog
-import com.vanpra.composematerialdialogs.MaterialDialogProperties
-import com.vanpra.composematerialdialogs.datetime.date.datepicker
-import com.vanpra.composematerialdialogs.rememberMaterialDialogState
+import kotlinx.datetime.Instant
 import java.net.URI
 import java.time.LocalDate
-import java.time.format.DateTimeFormatter
 
 @Composable
 fun MainContent(viewModel: MainViewModel) {
@@ -79,8 +71,6 @@ fun MainContent(viewModel: MainViewModel) {
     var hasFocus by remember { mutableStateOf(false) }
     MainContent(
         state = state.value,
-        syncProjects = viewModel::fetchProjects,
-        addTimeEntries = viewModel::addTimeEntries,
         save = viewModel::save,
         loadLastWeek = viewModel::loadTimeLastWeek,
         clearLogs = viewModel::clearLogs,
@@ -92,7 +82,26 @@ fun MainContent(viewModel: MainViewModel) {
             .focusable(),
         startTimer = { id, description ->
             viewModel.startTimer(id, description)
-        }
+        },
+        onPreviousDay = viewModel::goToPreviousDay,
+        onNextDay = viewModel::goToNextDay,
+        onToday = viewModel::goToToday,
+        onStartLocalTimer = { projectId, phaseId, description ->
+            viewModel.startLocalTimer(projectId = projectId, phaseId = phaseId, description = description)
+        },
+        onStopLocalTimer = viewModel::stopLocalTimer,
+        onDeleteEntry = viewModel::deleteEntry,
+        onAddEntry = { projectId, phaseId, description, startTime, endTime ->
+            viewModel.addEntry(description, projectId, phaseId, startTime, endTime)
+        },
+        onUpdateEntry = viewModel::updateEntry,
+        onUpdateEntryFull = viewModel::updateEntryFull,
+        onUpdateTimer = viewModel::updateTimerStartTime,
+        onPublishToFloat = {
+            viewModel.publishToFloat(state.value.selectedDate)
+        },
+        getProjectName = viewModel::getProjectName,
+        getRecommendations = viewModel::getRecommendations
     )
 
     if (!hasFocus) {
@@ -114,13 +123,24 @@ fun Version(modifier: Modifier = Modifier) {
 @Composable
 private fun MainContent(
     state: MainState,
-    syncProjects: () -> Unit,
-    addTimeEntries: (LocalDate?) -> Unit,
-    save: (String?, String?, FloatPeopleItem?) -> Unit,
+    save: (String?, FloatPeopleItem?) -> Unit,
     loadLastWeek: (Int) -> Unit,
     clearLogs: () -> Unit,
     modifier: Modifier = Modifier,
-    startTimer: (Int, String) -> Unit
+    startTimer: (Int, String) -> Unit,
+    onPreviousDay: () -> Unit,
+    onNextDay: () -> Unit,
+    onToday: () -> Unit,
+    onStartLocalTimer: (projectId: Int?, phaseId: Int?, description: String?) -> Unit,
+    onStopLocalTimer: () -> Unit,
+    onDeleteEntry: (Long) -> Unit,
+    onAddEntry: (projectId: Int?, phaseId: Int?, description: String?, startTime: Instant, endTime: Instant) -> Unit,
+    onUpdateEntry: (id: Long, newStartTime: Instant, newEndTime: Instant) -> Unit,
+    onUpdateEntryFull: (id: Long, projectId: Int?, phaseId: Int?, description: String?, startTime: Instant, endTime: Instant) -> Unit,
+    onUpdateTimer: (newStartTime: Instant) -> Unit,
+    onPublishToFloat: () -> Unit,
+    getProjectName: (Int?, Int?) -> String?,
+    getRecommendations: (String) -> List<EntryRecommendation>
 ) {
     val scrollState = rememberScrollState()
 
@@ -134,10 +154,27 @@ private fun MainContent(
                     when {
                         state.isValid -> {
                             LastRelease(state.latestRelease)
-                            Welcome(syncProjects)
-                            AddTime(
-                                addTimeEntries = addTimeEntries,
-                                missingEntryDates = state.missingEntryDates
+                            TimeTrackingSection(
+                                selectedDate = state.selectedDate,
+                                entries = state.localTimeEntries,
+                                activeTimer = state.activeTimer,
+                                currentTime = state.currentTime,
+                                floatProjects = state.floatProjects,
+                                floatPhases = state.floatPhases,
+                                weeklyOverview = state.weeklyOverview,
+                                getProjectName = getProjectName,
+                                getRecommendations = getRecommendations,
+                                onPreviousDay = onPreviousDay,
+                                onNextDay = onNextDay,
+                                onToday = onToday,
+                                onStartTimer = onStartLocalTimer,
+                                onStopTimer = onStopLocalTimer,
+                                onDeleteEntry = onDeleteEntry,
+                                onAddEntry = onAddEntry,
+                                onUpdateEntry = onUpdateEntry,
+                                onUpdateEntryFull = onUpdateEntryFull,
+                                onUpdateTimer = onUpdateTimer,
+                                onPublishToFloat = onPublishToFloat
                             )
                             Divider()
                             AnimatedVisibility(state.isValid) {
@@ -202,90 +239,17 @@ fun LastRelease(lastRelease: LatestRelease?) {
 }
 
 @Composable
-private fun Welcome(syncProjects: () -> Unit) {
-    Column {
-
-        Row(
-            horizontalArrangement = Arrangement.SpaceBetween,
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                "Happy ${LocalDate.now().dayOfWeek.toString().lowercase().capitalize()}! 🎉",
-                style = MaterialTheme.typography.h4
-            )
-
-            PrimaryButton(onClick = syncProjects) {
-                Icon(Icons.Default.Refresh, contentDescription = null)
-                Text(
-                    "Sync",
-                    style = MaterialTheme.typography.caption,
-                    modifier = Modifier.padding(start = 8.dp)
-                )
-            }
-        }
-        Text(
-            "Add time to float:",
-            modifier = Modifier.fillMaxWidth(),
-            style = MaterialTheme.typography.body2
-        )
-    }
+private fun Welcome() {
+    Text(
+        "Happy ${LocalDate.now().dayOfWeek.toString().lowercase().capitalize()}! 🎉",
+        style = MaterialTheme.typography.h4
+    )
 }
 
 @Composable
 fun Loading() {
     Box(modifier = Modifier.fillMaxWidth()) {
         CircularProgressIndicator(modifier = Modifier.align(Alignment.Center).size(20.dp))
-    }
-}
-
-@Composable
-private fun AddTime(addTimeEntries: (LocalDate?) -> Unit, missingEntryDates: List<LocalDate>) {
-    Box {
-        val dialogState = rememberMaterialDialogState()
-        MaterialDialog(
-            dialogState = dialogState,
-            buttons = {
-                positiveButton("Ok")
-                negativeButton("Cancel")
-            },
-            properties = MaterialDialogProperties(
-                windowTitle = "Select Date",
-                windowSize = DpSize(300.dp, 500.dp),
-                windowPosition = DesktopWindowPosition(Alignment.Center)
-            )
-        ) {
-            datepicker { date ->
-                addTimeEntries(LocalDate.of(date.year, date.month, date.dayOfMonth))
-            }
-        }
-
-        Column {
-            FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                mainAxisSpacing = 8.dp,
-                crossAxisSpacing = 8.dp
-            ) {
-                OutlinedButton(
-                    onClick = { dialogState.show() },
-                    contentPadding = PaddingValues(8.dp),
-                    modifier = Modifier.height(32.dp)
-                ) {
-                    Icon(Icons.Default.DateRange, null)
-                    Text("Select date...", Modifier.padding(start = 8.dp))
-                }
-                missingEntryDates.forEach {
-                    OutlinedButton(
-                        onClick = { addTimeEntries(it) },
-                        contentPadding = PaddingValues(8.dp),
-                        modifier = Modifier.height(32.dp)
-                    ) {
-                        Text(it.format(DateTimeFormatter.ofPattern("EEE, dd.MM")))
-                    }
-
-                }
-            }
-        }
     }
 }
 
@@ -334,7 +298,27 @@ private fun Logs(
 @Composable
 fun EmptyPreview() {
     FloaterTheme {
-        MainContent(MainState(), {}, {}, { _, _, _ -> }, {}, {}, Modifier, { _, _ -> })
+        MainContent(
+            state = MainState(),
+            save = { _, _ -> },
+            loadLastWeek = {},
+            clearLogs = {},
+            modifier = Modifier,
+            startTimer = { _, _ -> },
+            onPreviousDay = {},
+            onNextDay = {},
+            onToday = {},
+            onStartLocalTimer = { _, _, _ -> },
+            onStopLocalTimer = {},
+            onDeleteEntry = {},
+            onAddEntry = { _, _, _, _, _ -> },
+            onUpdateEntry = { _, _, _ -> },
+            onUpdateEntryFull = { _, _, _, _, _, _ -> },
+            onUpdateTimer = {},
+            onPublishToFloat = {},
+            getProjectName = { _, _ -> null },
+            getRecommendations = { emptyList() }
+        )
     }
 }
 
@@ -343,11 +327,25 @@ fun EmptyPreview() {
 fun ValidPreview() {
     FloaterTheme {
         MainContent(
-            MainState(floatApiKey = "sdljf", togglApiKey = "sdf", peopleId = 123),
-            {},
-            {},
-            { _, _, _ -> },
-            {}, {}, Modifier, { _, _ -> }
+            state = MainState(floatApiKey = "sdljf", peopleId = 123),
+            save = { _, _ -> },
+            loadLastWeek = {},
+            clearLogs = {},
+            modifier = Modifier,
+            startTimer = { _, _ -> },
+            onPreviousDay = {},
+            onNextDay = {},
+            onToday = {},
+            onStartLocalTimer = { _, _, _ -> },
+            onStopLocalTimer = {},
+            onDeleteEntry = {},
+            onAddEntry = { _, _, _, _, _ -> },
+            onUpdateEntry = { _, _, _ -> },
+            onUpdateEntryFull = { _, _, _, _, _, _ -> },
+            onUpdateTimer = {},
+            onPublishToFloat = {},
+            getProjectName = { _, _ -> null },
+            getRecommendations = { emptyList() }
         )
     }
 }

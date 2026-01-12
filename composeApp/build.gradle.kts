@@ -5,6 +5,7 @@ plugins {
     alias(libs.plugins.jetbrainsCompose)
     alias(libs.plugins.kotlinSerialization)
     alias(libs.plugins.buildKonfig)
+    alias(libs.plugins.sqldelight)
 }
 
 group = "com.appswithlove"
@@ -38,6 +39,8 @@ kotlin {
             implementation(libs.ktor.core)
             implementation(libs.ktor.cio)
             implementation(libs.kotlinx.datetime)
+            implementation(libs.sqldelight.driver)
+            implementation(libs.sqldelight.coroutines)
 
             implementation("com.bybutter.compose:compose-jetbrains-expui-theme:2.2.0")
             implementation("org.jetbrains.compose.material:material-icons-extended-desktop:1.6.0")
@@ -86,4 +89,12 @@ compose.desktop {
 buildConfig {
     packageName("com.appswithlove")
     buildConfigField("APP_VERSION", provider { "${project.version}" })
+}
+
+sqldelight {
+    databases {
+        create("TimeTrackingDatabase") {
+            packageName.set("com.appswithlove.database")
+        }
+    }
 }
