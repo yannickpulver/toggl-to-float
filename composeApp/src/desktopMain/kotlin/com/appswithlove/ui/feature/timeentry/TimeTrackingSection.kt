@@ -26,7 +26,6 @@ import com.appswithlove.floaat.FloatProject
 import com.appswithlove.floaat.SelectablePhase
 import com.appswithlove.floaat.SelectableProject
 import com.appswithlove.timetracking.ActiveTimer
-import com.appswithlove.timetracking.EntryRecommendation
 import com.appswithlove.timetracking.LocalTimeEntry
 import kotlinx.datetime.Instant
 import java.time.LocalDate
@@ -43,7 +42,6 @@ fun TimeTrackingSection(
     floatPhases: List<SelectablePhase>,
     weeklyOverview: Map<FloatProject?, List<FloatOverview>>,
     getProjectName: (Int?, Int?) -> String?,
-    getRecommendations: (String) -> List<EntryRecommendation>,
     onPreviousDay: () -> Unit,
     onNextDay: () -> Unit,
     onToday: () -> Unit,
@@ -102,6 +100,8 @@ fun TimeTrackingSection(
                     entries = entries,
                     activeTimer = activeTimer,
                     currentTime = currentTime,
+                    floatProjects = floatProjects,
+                    floatPhases = floatPhases,
                     getProjectName = getProjectName,
                     onCreateEntry = { startTime, endTime ->
                         pendingStartTime = startTime
@@ -140,9 +140,9 @@ fun TimeTrackingSection(
             selectedDate = selectedDate,
             floatProjects = floatProjects,
             floatPhases = floatPhases,
+            weeklyOverview = weeklyOverview,
             initialStartTime = pendingStartTime,
             initialEndTime = pendingEndTime,
-            getRecommendations = getRecommendations,
             onDismiss = {
                 showAddDialog = false
                 pendingStartTime = null
@@ -160,8 +160,8 @@ fun TimeTrackingSection(
             selectedDate = selectedDate,
             floatProjects = floatProjects,
             floatPhases = floatPhases,
+            weeklyOverview = weeklyOverview,
             existingEntry = entry,
-            getRecommendations = getRecommendations,
             onDismiss = { editingEntry = null },
             onSave = { _, _, _, _, _ -> },
             onUpdate = { id, projectId, phaseId, description, startTime, endTime ->

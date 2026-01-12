@@ -404,15 +404,16 @@ class MainViewModel constructor(
                     }
 
                     val data = entries.mapNotNull { entry ->
-                        val phaseId = entry.phaseId ?: return@mapNotNull null
+                        // Use phaseId if available, otherwise projectId
+                        val id = entry.phaseId ?: entry.projectId ?: return@mapNotNull null
                         TimeEntryForPublishing(
                             timeEntry = entry.toTogglTimeEntry(),
-                            id = phaseId
+                            id = id
                         )
                     }
 
                     if (data.isEmpty()) {
-                        Logger.err("No entries with valid phase IDs to publish")
+                        Logger.err("No entries with valid project/phase IDs to publish")
                         return@withLoading
                     }
 

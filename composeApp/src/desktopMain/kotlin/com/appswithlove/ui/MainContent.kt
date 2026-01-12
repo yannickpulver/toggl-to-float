@@ -50,7 +50,6 @@ import androidx.compose.ui.unit.dp
 import com.appswithlove.BuildConfig
 import com.appswithlove.floaat.FloatPeopleItem
 import com.appswithlove.ui.feature.atlassian.AddTimeAtlassian
-import com.appswithlove.timetracking.EntryRecommendation
 import com.appswithlove.ui.feature.snackbar.SnackbarPublisher
 import com.appswithlove.ui.feature.timeentry.TimeTrackingSection
 import com.appswithlove.ui.feature.update.LatestRelease
@@ -100,8 +99,7 @@ fun MainContent(viewModel: MainViewModel) {
         onPublishToFloat = {
             viewModel.publishToFloat(state.value.selectedDate)
         },
-        getProjectName = viewModel::getProjectName,
-        getRecommendations = viewModel::getRecommendations
+        getProjectName = viewModel::getProjectName
     )
 
     if (!hasFocus) {
@@ -139,8 +137,7 @@ private fun MainContent(
     onUpdateEntryFull: (id: Long, projectId: Int?, phaseId: Int?, description: String?, startTime: Instant, endTime: Instant) -> Unit,
     onUpdateTimer: (newStartTime: Instant) -> Unit,
     onPublishToFloat: () -> Unit,
-    getProjectName: (Int?, Int?) -> String?,
-    getRecommendations: (String) -> List<EntryRecommendation>
+    getProjectName: (Int?, Int?) -> String?
 ) {
     val scrollState = rememberScrollState()
 
@@ -163,7 +160,6 @@ private fun MainContent(
                                 floatPhases = state.floatPhases,
                                 weeklyOverview = state.weeklyOverview,
                                 getProjectName = getProjectName,
-                                getRecommendations = getRecommendations,
                                 onPreviousDay = onPreviousDay,
                                 onNextDay = onNextDay,
                                 onToday = onToday,
@@ -316,8 +312,7 @@ fun EmptyPreview() {
             onUpdateEntryFull = { _, _, _, _, _, _ -> },
             onUpdateTimer = {},
             onPublishToFloat = {},
-            getProjectName = { _, _ -> null },
-            getRecommendations = { emptyList() }
+            getProjectName = { _, _ -> null }
         )
     }
 }
@@ -344,8 +339,7 @@ fun ValidPreview() {
             onUpdateEntryFull = { _, _, _, _, _, _ -> },
             onUpdateTimer = {},
             onPublishToFloat = {},
-            getProjectName = { _, _ -> null },
-            getRecommendations = { emptyList() }
+            getProjectName = { _, _ -> null }
         )
     }
 }

@@ -38,6 +38,7 @@ kotlin {
             implementation(libs.koin.compose)
             implementation(libs.ktor.core)
             implementation(libs.ktor.cio)
+            implementation(libs.ktor.logging)
             implementation(libs.kotlinx.datetime)
             implementation(libs.sqldelight.driver)
             implementation(libs.sqldelight.coroutines)

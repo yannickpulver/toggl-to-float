@@ -4,10 +4,12 @@ import TimeEntryForPublishing
 import com.appswithlove.json
 import com.appswithlove.jsonNoDefaults
 import com.appswithlove.store.DataStore
+import com.appswithlove.ui.LogLevel
 import com.appswithlove.ui.Logger
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.cio.CIO
+import io.ktor.client.plugins.logging.Logging
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
@@ -318,7 +320,16 @@ class FloatRepo constructor(private val dataStore: DataStore) {
         url: String,
         headers: Map<String, String> = mapOf()
     ): HttpResponse {
-        val client = HttpClient(CIO)
+        val client = HttpClient(CIO) {
+            install(Logging) {
+                level = io.ktor.client.plugins.logging.LogLevel.ALL
+                logger = object : io.ktor.client.plugins.logging.Logger {
+                    override fun log(message: String) {
+                        println(message)
+                    }
+                }
+            }
+        }
 
         val response: HttpResponse = client.get(url) {
             header(HttpHeaders.Authorization, "Bearer ${getFloatApiKey()}")
@@ -331,7 +342,16 @@ class FloatRepo constructor(private val dataStore: DataStore) {
 
     private suspend fun postRequest(url: String, data: String): HttpResponse {
 
-        val client = HttpClient(CIO)
+        val client = HttpClient(CIO) {
+            install(Logging) {
+                level = io.ktor.client.plugins.logging.LogLevel.BODY
+                logger = object : io.ktor.client.plugins.logging.Logger {
+                    override fun log(message: String) {
+                        println(message)
+                    }
+                }
+            }
+        }
 
         val response: HttpResponse = client.post(url) {
             header(HttpHeaders.ContentType, "application/json")

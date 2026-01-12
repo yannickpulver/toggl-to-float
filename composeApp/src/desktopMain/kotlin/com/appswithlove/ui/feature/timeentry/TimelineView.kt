@@ -20,15 +20,12 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.Card
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -42,6 +39,9 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import com.appswithlove.floaat.SelectablePhase
+import com.appswithlove.floaat.SelectableProject
+import com.appswithlove.floaat.hex2Rgb
 import com.appswithlove.timetracking.ActiveTimer
 import com.appswithlove.timetracking.LocalTimeEntry
 import kotlinx.datetime.Instant
@@ -53,9 +53,9 @@ import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
 import kotlin.math.roundToInt
 
-private const val START_HOUR = 6
-private const val END_HOUR = 22
-private val HOUR_HEIGHT = 60.dp
+private const val START_HOUR = 0
+private const val END_HOUR = 24
+private val HOUR_HEIGHT = 50.dp
 private val TIME_LABEL_WIDTH = 50.dp
 private const val MIN_ENTRY_MINUTES = 15
 
@@ -65,6 +65,8 @@ fun TimelineView(
     entries: List<LocalTimeEntry>,
     activeTimer: ActiveTimer?,
     currentTime: Instant,
+    floatProjects: List<SelectableProject>,
+    floatPhases: List<SelectablePhase>,
     getProjectName: (Int?, Int?) -> String?,
     onCreateEntry: (startTime: Instant, endTime: Instant) -> Unit,
     onUpdateEntry: (id: Long, newStartTime: Instant, newEndTime: Instant) -> Unit = { _, _, _ -> },
@@ -72,7 +74,14 @@ fun TimelineView(
     onEntryClick: (LocalTimeEntry) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    val scrollState = rememberScrollState()
+    // Helper to get color for an entry based on phase/project
+    fun getEntryColor(projectId: Int?, phaseId: Int?): Color {
+        val phase = phaseId?.let { pid -> floatPhases.find { it.phaseId == pid } }
+        val project = projectId?.let { pid -> floatProjects.find { it.projectId == pid } }
+        return phase?.color?.let { hex2Rgb(it)?.copy(alpha = 1f) }
+            ?: project?.color?.let { hex2Rgb(it)?.copy(alpha = 1f) }
+            ?: Color(0xFF2196F3)
+    }
     val density = LocalDensity.current
     val hourHeightPx = with(density) { HOUR_HEIGHT.toPx() }
 
@@ -90,26 +99,11 @@ fun TimelineView(
     val currentTimeMinutes = (currentLocalTime.hour - START_HOUR) * 60 + currentLocalTime.minute
     val currentTimeY = (currentTimeMinutes / 60f) * hourHeightPx
 
-    // Scroll to current time on launch (with offset so it's visible near top)
-    LaunchedEffect(Unit) {
-        if (isToday && currentTimeMinutes > 0) {
-            val scrollOffset = (currentTimeY - 100f).coerceAtLeast(0f).toInt()
-            scrollState.scrollTo(scrollOffset)
-        }
-    }
-
     Column(modifier = modifier.fillMaxWidth()) {
-        Text(
-            text = "Timeline",
-            style = MaterialTheme.typography.subtitle1,
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
-
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(400.dp)
-                .verticalScroll(scrollState)
+                .height(totalHeight)
         ) {
             Row(modifier = Modifier.height(totalHeight)) {
                 // Hour labels column
@@ -199,6 +193,7 @@ fun TimelineView(
                     entries.forEach { entry ->
                         TimeEntryBlock(
                             entry = entry,
+                            color = getEntryColor(entry.projectId, entry.phaseId),
                             selectedDate = selectedDate,
                             hourHeightPx = hourHeightPx,
                             totalHours = totalHours,
@@ -218,6 +213,7 @@ fun TimelineView(
                             ActiveTimerBlock(
                                 timer = activeTimer,
                                 currentTime = currentTime,
+                                color = getEntryColor(activeTimer.projectId, activeTimer.phaseId),
                                 projectName = getProjectName(activeTimer.projectId, activeTimer.phaseId),
                                 selectedDate = selectedDate,
                                 hourHeightPx = hourHeightPx,
@@ -285,6 +281,7 @@ fun TimelineView(
 private fun ActiveTimerBlock(
     timer: ActiveTimer,
     currentTime: Instant,
+    color: Color,
     projectName: String?,
     selectedDate: java.time.LocalDate,
     hourHeightPx: Float,
@@ -371,7 +368,7 @@ private fun ActiveTimerBlock(
                         }
                     )
                 },
-            backgroundColor = Color(0xFFFF9800).copy(alpha = if (isDragging) 1f else alpha),
+            backgroundColor = color.copy(alpha = if (isDragging) 1f else alpha),
             elevation = if (isDragging) 6.dp else 4.dp,
             shape = RoundedCornerShape(4.dp)
         ) {
@@ -419,6 +416,7 @@ private enum class DragMode { NONE, MOVE, RESIZE_TOP, RESIZE_BOTTOM }
 @Composable
 private fun TimeEntryBlock(
     entry: LocalTimeEntry,
+    color: Color,
     selectedDate: java.time.LocalDate,
     hourHeightPx: Float,
     totalHours: Int,
@@ -426,6 +424,7 @@ private fun TimeEntryBlock(
     onUpdateEntry: (id: Long, newStartTime: Instant, newEndTime: Instant) -> Unit,
     onClick: () -> Unit
 ) {
+    val dragColor = color.copy(alpha = 0.8f)
     val tz = TimeZone.currentSystemDefault()
     val startTime = entry.startTime.toLocalDateTime(tz).time
     val endTime = entry.endTime?.toLocalDateTime(tz)?.time ?: LocalTime(END_HOUR, 0)
@@ -527,7 +526,7 @@ private fun TimeEntryBlock(
                         }
                     )
                 },
-            backgroundColor = if (dragMode != DragMode.NONE) Color(0xFF1976D2) else Color(0xFF2196F3),
+            backgroundColor = if (dragMode != DragMode.NONE) dragColor else color,
             elevation = if (dragMode != DragMode.NONE) 6.dp else 2.dp,
             shape = RoundedCornerShape(4.dp)
         ) {
